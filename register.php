@@ -6,7 +6,7 @@ $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $nama = trim($_POST['username']);
-    $no_hp = $_POST['no_hp'];
+    $gender = $_POST['gender'];
     $email = trim($_POST['email']);
     $password = $_POST['password'];
     $role = 'siswa'; // default role user
@@ -21,14 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $error = "Email sudah digunakan";
     } else {
         
-        $stmt = $conn->prepare("INSERT INTO user (nama, no_hp, email, password, role) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("sssss", $nama,$no_hp, $email, $password, $role);
+       $stmt= $conn->prepare("INSERT INTO user (nama, gender, email, password, role) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssss", $nama, $gender, $email, $password, $role);
+   
         if ($stmt->execute()) {
             $success = "Registrasi berhasil. Silakan login.";
         } else {
             $error = "Gagal mendaftar.";
         }
     }
+
 }
 ?>
 
@@ -50,9 +52,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <form method="POST" action="">
         <label>Nama:</label><br>
         <input type="text" name="username" required><br><br>
+      
+      <label>Gender:</label><br>
+    <input type="radio" id="male" name="gender" value="laki-laki" required>
+    <label for="laki-laki">Laki-laki</label><br>
 
-        <label>No_hp:</label><br>
-        <input type="no_hp" name="no_hp" required><br><br>
+    <input type="radio" id="female" name="gender" value="perempuan" required>
+    <label for="perempuan">Perempuan</label><br>
 
         <label>Email:</label><br>
         <input type="email" name="email" required><br><br>
