@@ -2,35 +2,30 @@
 include 'koneksi.php';
 
 $error = '';
+$success = '';
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $nama = trim($_POST['username']);
+    $gender = $_POST['gender'];
     $email = trim($_POST['email']);
     $password = $_POST['password'];
-    $konfirmasi_password = $_POST['konfirmasi_password'];
+    $role = 'siswa';
 
-    if ($password !== $konfirmasi_password) {
-        $error = "Konfirmasi password tidak cocok.";
+    $cek = $conn->prepare("SELECT * FROM user WHERE email = ?");
+    $cek->bind_param("s", $email);
+    $cek->execute();
+    $result = $cek->get_result();
+
+    if ($result->num_rows > 0) {
+        $error = "Email sudah digunakan";
     } else {
-        $stmt = $conn->prepare("SELECT * FROM user WHERE email = ? AND password = ?");
-        $stmt->bind_param("ss", $email, $password);
-        $stmt->execute();
-        $result = $stmt->get_result();
+        $stmt = $conn->prepare("INSERT INTO user (nama, gender, email, password, role) VALUES (?, ?, ?, ?, ?)");
+        $stmt->bind_param("sssss", $nama, $gender, $email, $password, $role);
 
-        if ($result->num_rows == 1) {
-            session_start();
-            $user = $result->fetch_assoc();
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['nama'] = $user['nama'];
-            $_SESSION['role'] = $user['role'];
-
-        if ($user['role'] === 'admin') {
-                header("Location: dashboard_admin.php");
-            } else {
-                header("Location: ngambil.php");
-            }
-            exit();
+        if ($stmt->execute()) {
+            $success = "Registrasi berhasil. Silakan login.";
         } else {
-            $error = "Email atau password salah.";
+            $error = "Gagal mendaftar.";
         }
     }
 }
@@ -39,8 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>Login - E-Snap</title>
+  <meta charset="UTF-8" />
+  <title>Register - E-Snap</title>
   <style>
     * {
       box-sizing: border-box;
@@ -70,36 +65,60 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     .form-group {
       margin-bottom: 20px;
-      position: relative; /* penting agar toggle eye absolut */
     }
-
     .form-group label {
       display: block;
       margin-bottom: 8px;
       color: #333;
     }
 
+    input[type="text"],
     input[type="email"],
-    input[type="password"],
-    input[type="text"] {
-      width: 80%;
-      height: 34px;
-      padding: 12px 40px 12px 12px; /* padding kanan untuk ruang toggle */
+    input[type="password"] {
+      padding: 12px;
+      box-sizing: border-box;
       border-radius: 25px;
       border: 1px solid rgba(0,0,0,0.5);
       outline: none;
-      transition: all 0.3s ease;
+    }
+
+    /* Wrapper untuk input password + toggle icon */
+    .input-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    .input-wrapper input {
+      width: 80%;
+      padding-right: 40px;/* ruang buat icon */
+      position: relative;
+      
     }
 
     .toggle-password {
       position: absolute;
-      right: 15px;
-      top: 60%;
-      transform: translateX(-460%);
+      right: 12px;
+      top: 30%;
+      transform: translateX(-470%);
       cursor: pointer;
       width: 20px;
       height: 20px;
-      user-select: none;
+    }
+
+    input[type="text"],
+    input[type="email"] {
+      width: 80%;
+      box-sizing: border-box;
+    }
+
+    .gender-options {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gender-options label {
+      margin-left: 5px;
     }
 
     .btn-submit {
@@ -114,19 +133,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       display: block;
       margin: 20px auto;
       margin-left: 40px;
-      transition: background 0.3s ease;
     }
 
-    .btn-submit:hover {
-      background: #549b20;
-    }
-
-    .register-link {
+    .login-link {
       margin-top: -10px;
       text-align: center;
     }
 
-    .register-link a {
+    .login-link a {
       display: inline-block;
       background: #97c9fd;
       color: white;
@@ -137,7 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       margin-left: -90px;
     }
 
-    .register-link p {
+    .login-link p {
       margin: 30px;
       margin-left: -60px;
     }
@@ -184,6 +198,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       font-weight: bold;
     }
 
+    .message.success {
+      color: green;
+    }
+
     .message.error {
       color: red;
     }
@@ -212,11 +230,30 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body>
   <div class="reg-container">
     <div class="left-pane">
+
       <?php if ($error): ?>
         <div class="message error"><?php echo $error; ?></div>
+      <?php elseif ($success): ?>
+        <div class="message success"><?php echo $success; ?></div>
       <?php endif; ?>
 
       <form method="POST" action="">
+        <div class="form-group">
+          <label for="username">Nama</label>
+          <input type="text" name="username" id="username" required>
+        </div>
+
+        <div class="form-group">
+          <label>Gender</label>
+          <div class="gender-options">
+            <input type="radio" id="male" name="gender" value="laki-laki" required>
+            <label for="male">Laki-laki</label>
+
+            <input type="radio" id="female" name="gender" value="perempuan" required>
+            <label for="female">Perempuan</label>
+          </div>
+        </div>
+
         <div class="form-group">
           <label for="email">Email</label>
           <input type="email" name="email" id="email" required>
@@ -224,54 +261,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <div class="form-group">
           <label for="password">Password</label>
-          <input type="password" name="password" id="password" required>
-          <img src="Eye off.png" class="toggle-password" data-target="password" alt="Toggle Eye">
+          <div class="input-wrapper">
+            <input type="password" name="password" id="password" required>
+            <img src="Eye off.png" class="toggle-password" data-target="password" alt="Toggle Eye" />
+          </div>
         </div>
 
-        <div class="form-group">
-          <label for="konfirmasi_password">Konfirmasi Password</label>
-          <input type="password" name="konfirmasi_password" id="konfirmasi_password" required>
-          <img src="Eye off.png" class="toggle-password" data-target="konfirmasi_password" alt="Toggle Eye">
-        </div>
+        <button type="submit" class="btn-submit">Register Sekarang</button>
 
-        <button type="submit" class="btn-submit">Login</button>
-
-        <div class="register-link">
-          <p>Belum punya akun?</p>
-          <a href="reg.php">Daftar di sini</a>
+        <div class="login-link">
+          <p>Sudah punya akun?</p>
+          <a href="login.php">Masuk Disini</a>
         </div>
       </form>
     </div>
 
     <div class="right-pane">
-      <img src="logo_e-snap-removebg-preview.png" alt="Logo E-Snap">
+      <img src="logo_e-snap-removebg-preview.png" alt="Logo E-Snap" />
       <div class="quote">
-        <h2>Login Anggota E-Snap</h2>
-        <h3>"Veni, vidi, vici."</h3>
-        <p>Aku datang, aku lihat, aku menang.</p>
-        <p>- Julius Caesar</p>
+        <h2>Register Anggota E-Snap</h2>
+        <h3>"Scientia potentia est."</h3>
+        <p>Pengetahuan adalah kekuatan.</p>
+        <p>- Francis Bacon</p>
       </div>
     </div>
 
     <div class="asset">
-      <img src="Ellipse 13.png" alt="ELLipse">
+      <img src="Ellipse 13.png" alt="ELLipse" />
     </div>
   </div>
 
   <script>
-    const toggleIcons = document.querySelectorAll('.toggle-password');
-
-    toggleIcons.forEach(icon => {
-      icon.addEventListener('click', () => {
-        const inputId = icon.getAttribute('data-target');
-        const input = document.getElementById(inputId);
-
-        if (input.type === "password") {
-          input.type = "text";
-          icon.src = "Eye.png"; // ikon untuk password terlihat
+    document.querySelectorAll('.toggle-password').forEach(function(toggle) {
+      toggle.addEventListener('click', function() {
+        const targetId = this.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (input.type === 'password') {
+          input.type = 'text';
+          this.src = 'Eye.png'; // ganti ke ikon eye on
         } else {
-          input.type = "password";
-          icon.src = "Eye off.png"; // ikon untuk password tersembunyi
+          input.type = 'password';
+          this.src = 'Eye off.png'; // ganti ke ikon eye off
         }
       });
     });

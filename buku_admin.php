@@ -8,7 +8,6 @@ $success = '';
 $catRes = $conn->query("SELECT id_kategori, nama_kategori FROM kategori ORDER BY nama_kategori ASC");
 if (! $catRes) die('Query kategori gagal: ' . $conn->error);
 
-// ==== BAGIAN EDIT ====
 if (isset($_GET['edit'])) {
     $id_buku = intval($_GET['edit']);
     // Ambil data buku yang mau diedit
@@ -25,6 +24,7 @@ if (isset($_GET['edit'])) {
     if (isset($_POST['update'])) {
         $judul       = trim($_POST['judul']);
         $penulis     = trim($_POST['penulis']);
+        $sinopsis    = trim($_POST['sinopsis']);
         $kategori_id = intval($_POST['kategori_id']);
 
         $file_path  = $buku_edit['file_buku'];
@@ -88,6 +88,8 @@ if (isset($_GET['edit'])) {
 if (isset($_POST['add'])) {
     $judul        = trim($_POST['judul']);
     $penulis      = trim($_POST['penulis']);
+    $sinopsis      = trim($_POST['sinopsis']);
+
     $kategori_id  = intval($_POST['kategori_id']);
 
     // Upload file buku
@@ -124,9 +126,9 @@ if (isset($_POST['add'])) {
 
     if (empty($error)) {
         $stmt = $conn->prepare(
-            "INSERT INTO buku (judul, penulis, file_buku, cover_buku, id_kategori) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO buku (judul, penulis, file_buku, cover_buku,sinopsis , id_kategori) VALUES (?, ?, ?, ?, ?, ?)"
         );
-        $stmt->bind_param("ssssi", $judul, $penulis, $file_path, $cover_path, $kategori_id);
+        $stmt->bind_param("sssssi", $judul, $penulis, $sinopsis, $file_path, $cover_path, $kategori_id);
         if ($stmt->execute()) {
             $success = 'Buku berhasil ditambahkan';
         } else {
@@ -154,6 +156,7 @@ $sql = "
         b.id_buku,
         b.judul,
         b.penulis,
+        b.sinopsis,
         b.file_buku,
         b.cover_buku,
         k.nama_kategori AS kategori
@@ -184,10 +187,9 @@ if (! $bookRes) die('Query buku gagal: ' . $conn->error);
         <form method="POST" action="buku_admin.php?edit=<?php echo $buku_edit['id_buku']; ?>" enctype="multipart/form-data">
             <input type="text" name="judul" placeholder="Judul Buku" required value="<?php echo htmlspecialchars($buku_edit['judul']); ?>"><br>
             <input type="text" name="penulis" placeholder="Penulis" required value="<?php echo htmlspecialchars($buku_edit['penulis']); ?>"><br>
-
+            <input type="text" name="sinopsis" placeholder="sinopsis" required value="<?php echo htmlspecialchars($buku_edit['sinopsis']); ?>"><br>
             <input type="file" name="file_buku" accept=".pdf,.doc,.docx"><br>
             File saat ini: <a href="<?php echo htmlspecialchars($buku_edit['file_buku']); ?>" target="_blank">Lihat File</a><br>
-
             <input type="file" name="cover_buku" accept=".jpg,.jpeg,.png,.webp"><br>
             Cover saat ini:
             <?php if (!empty($buku_edit['cover_buku'])): ?>
@@ -213,7 +215,8 @@ if (! $bookRes) die('Query buku gagal: ' . $conn->error);
                             <h3>Tambah Buku</h3>
                             <form method="POST" enctype="multipart/form-data">
                                 <input type="text" name="judul" placeholder="Judul Buku" required><br>
-                                <input type="text" name="penulis" placeholder="Penulis" required><br>
+                                <input type="text" name="penulis" placeholder="Penulis" require><br>
+                                <input type="text" name="sinopsis" placeholder="sinopsis" required><br>
                                 <input type="file" name="file_buku" accept=".pdf,.doc,.docx" required><br>
                                 <input type="file" name="cover_buku" accept=".jpg,.jpeg,.png,.webp" required><br>
                                 <select name="kategori_id" required>
@@ -235,6 +238,7 @@ if (! $bookRes) die('Query buku gagal: ' . $conn->error);
                                 <th>Judul</th>
                                 <th>Penulis</th>
                                 <th>Kategori</th>
+                                <th>Sinopsis</th>
                                 <th>File</th>
                                 <th>Cover</th>
                                 <th>Aksi</th>
@@ -245,6 +249,7 @@ if (! $bookRes) die('Query buku gagal: ' . $conn->error);
                                     <td><?php echo htmlspecialchars($row['judul']); ?></td>
                                     <td><?php echo htmlspecialchars($row['penulis']); ?></td>
                                     <td><?php echo htmlspecialchars($row['kategori']); ?></td>
+                                    <td><?php echo htmlspecialchars($row['sinopsis']); ?></td>
                                     <td>
                                         <?php if (!empty($row['file_buku'])): ?>
                                             <a href="<?php echo htmlspecialchars($row['file_buku']); ?>" target="_blank">Lihat File</a>
