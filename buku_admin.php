@@ -154,7 +154,7 @@ $sql = "
     SELECT
         b.id_buku,
         b.judul,
-        b.pengarang AS penulis,
+        b.penulis,
         b.file_buku,
         b.cover_buku,
         k.nama_kategori AS kategori
