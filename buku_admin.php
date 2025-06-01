@@ -24,7 +24,6 @@ if (isset($_GET['edit'])) {
     if (isset($_POST['update'])) {
         $judul       = trim($_POST['judul']);
         $penulis     = trim($_POST['penulis']);
-        $sinopsis    = trim($_POST['sinopsis']);
         $kategori_id = intval($_POST['kategori_id']);
 
         $file_path  = $buku_edit['file_buku'];
@@ -59,8 +58,8 @@ if (isset($_GET['edit'])) {
         }
 
         if (empty($error)) {
-            $stmt = $conn->prepare("UPDATE buku SET judul=?, penulis=?,sinopsis=?, id_kategori=?, file_buku=?, cover_buku=? WHERE id_buku=?");
-            $stmt->bind_param("sssissi", $judul, $penulis, $sinopsis, $kategori_id, $file_path, $cover_path, $id_buku);
+            $stmt = $conn->prepare("UPDATE buku SET judul=?, penulis=?, id_kategori=?, file_buku=?, cover_buku=? WHERE id_buku=?");
+            $stmt->bind_param("sssissi", $judul, $penulis, $kategori_id, $file_path, $cover_path, $id_buku);
             if ($stmt->execute()) {
                 $success = 'Data buku berhasil diperbarui.';
                 // Refresh data buku_edit
@@ -88,7 +87,6 @@ if (isset($_GET['edit'])) {
 if (isset($_POST['add'])) {
     $judul        = trim($_POST['judul']);
     $penulis      = trim($_POST['penulis']);
-    $sinopsis      = trim($_POST['sinopsis']);
 
     $kategori_id  = intval($_POST['kategori_id']);
 
@@ -126,7 +124,7 @@ if (isset($_POST['add'])) {
 
     if (empty($error)) {
         $stmt = $conn->prepare(
-            "INSERT INTO buku (judul, penulis, file_buku, cover_buku, id_kategori) VALUES (?,?, ?, ?, ?)"
+            "INSERT INTO buku (judul, penulis, file_buku, cover_buku, id_kategori) VALUES (?,?,?, ?)"
         );
         $stmt->bind_param("ssssi", $judul, $penulis,  $file_path, $cover_path, $kategori_id);
         if ($stmt->execute()) {
@@ -156,7 +154,7 @@ $sql = "
     SELECT
         b.id_buku,
         b.judul,
-        b.penulis,
+        b.pengarang AS penulis,
         b.file_buku,
         b.cover_buku,
         k.nama_kategori AS kategori
