@@ -2,63 +2,41 @@
 // ===== PHP LOGIC SECTION =====
 include 'koneksi.php';
 
-// Ambil keyword dari input
-$keyword = isset($_GET['search']) ? trim($_GET['search']) : '';
+// Simulasi session user - dalam implementasi nyata, ambil dari session
+$user_id = 12311; // Contoh user ID, sesuaikan dengan session login
 
-// Query untuk mengambil buku yang baru ditambahkan (dalam 7 hari terakhir) 
-// ATAU buku yang baru diupdate (dalam 3 hari terakhir)
-$newBooksQuery = $conn->query("
+// Query untuk mengambil history buku yang pernah dibaca user
+$historyQuery = $conn->query("
     SELECT 
-        id_buku, 
-        judul, 
-        penulis, 
-        cover_buku, 
-        created_at,
-        updated_at,
-        CASE 
-            WHEN DATEDIFF(NOW(), created_at) <= 7 THEN 'new'
-            WHEN DATEDIFF(NOW(), updated_at) <= 3 THEN 'updated'
-            ELSE 'old'
-        END as status,
-        GREATEST(created_at, COALESCE(updated_at, created_at)) as latest_activity
-    FROM buku 
-    WHERE 
-        DATEDIFF(NOW(), created_at) <= 7 
-        OR DATEDIFF(NOW(), COALESCE(updated_at, created_at)) <= 3
-    ORDER BY latest_activity DESC 
-    LIMIT 5
+        h.id_history,
+        h.tanggal_baca,
+        b.id_buku,
+        b.judul,
+        b.penulis,
+        b.cover_buku,
+        k.nama_kategori,
+        DATEDIFF(NOW(), h.tanggal_baca) as days_ago
+    FROM history h
+    JOIN buku b ON h.id_buku = b.id_buku
+    LEFT JOIN kategori k ON b.id_kategori = k.id_kategori
+    WHERE h.id_user = $user_id
+    ORDER BY h.tanggal_baca DESC
 ");
-
-// Query untuk mengambil 5 buku dari kategori education
-$educationQuery = $conn->query("
-    SELECT b.id_buku, b.judul, b.penulis, b.cover_buku 
-    FROM buku b 
-    JOIN kategori k ON b.id_kategori = k.id_kategori 
-    WHERE k.nama_kategori = 'education' 
-    ORDER BY b.id_buku DESC 
-    LIMIT 5
-");
-
-// Query untuk hasil pencarian
-$searchResults = null;
-if (!empty($keyword)) {
-    $keyword_escaped = mysqli_real_escape_string($conn, $keyword);
-    $searchQuery = "SELECT id_buku, judul, penulis, cover_buku FROM buku WHERE judul LIKE '%$keyword_escaped%' OR penulis LIKE '%$keyword_escaped%'";
-    $searchResults = mysqli_query($conn, $searchQuery);
-}
 
 // Function untuk format waktu
-function formatTimeAgo($datetime) {
-    $latestDate = new DateTime($datetime);
-    $now = new DateTime();
-    $diff = $now->diff($latestDate);
-    
-    if ($diff->days == 0) {
+function formatTimeAgo($days) {
+    if ($days == 0) {
         return 'Hari ini';
-    } elseif ($diff->days == 1) {
+    } elseif ($days == 1) {
         return '1 hari lalu';
+    } elseif ($days < 7) {
+        return $days . ' hari lalu';
+    } elseif ($days < 30) {
+        $weeks = floor($days / 7);
+        return $weeks == 1 ? '1 minggu lalu' : $weeks . ' minggu lalu';
     } else {
-        return $diff->days . ' hari lalu';
+        $months = floor($days / 30);
+        return $months == 1 ? '1 bulan lalu' : $months . ' bulan lalu';
     }
 }
 ?>
@@ -68,9 +46,9 @@ function formatTimeAgo($datetime) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perpustakaan Digital - SMKN 8 Semarang</title>
+    <title>History - Perpustakaan Digital SMKN 8 Semarang</title>
     <style>
-         * {
+        * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -113,11 +91,16 @@ function formatTimeAgo($datetime) {
             cursor: pointer;
             transition: color 0.3s;
             position: relative;
-            
+            text-decoration: none;
         }
 
         .nav-item:hover {
             color: #000;
+        }
+
+        .nav-item.active {
+            color: #007bff;
+            font-weight: 700;
         }
 
         /* Categories Dropdown */
@@ -200,7 +183,6 @@ function formatTimeAgo($datetime) {
         }
 
         /* Icon styles */
-        .icon-popular::before { content: "🔥"; }
         .icon-education::before { content: "🎓"; }
         .icon-kids::before { content: "👶"; }
         .icon-fiction::before { content: "📚"; }
@@ -258,48 +240,6 @@ function formatTimeAgo($datetime) {
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
-        /* Hero Section */
-        .hero-section {
-            margin: 0 50px 30px 50px;
-            border-radius: 30px;
-            overflow: hidden;
-            position: relative;
-            height: 400px;
-        }
-
-        .hero-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.9;
-        }
-
-        .hero-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .hero-title {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .hero-subtitle {
-            font-size: 20px;
-            font-weight: 400;
-            opacity: 0.95;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-
         /* Main Content */
         .main-content {
             background-color: #7cb3e661;
@@ -309,76 +249,63 @@ function formatTimeAgo($datetime) {
             min-height: 800px;
         }
 
-        /* Search Results Section */
-        .search-results-section {
-            margin-bottom: 50px;
+        /* History Section */
+        .history-section {
+            background: #fff;
             border-radius: 20px;
             padding: 30px;
-            background: #fff;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
 
-        .search-results-header {
-            margin-bottom: 25px;
+        .history-header {
+            margin-bottom: 30px;
+            text-align: center;
         }
 
-        .search-results-title {
-            font-size: 24px;
-            font-weight: 600;
+        .history-title {
+            font-size: 32px;
+            font-weight: 700;
             color: #333;
             margin-bottom: 10px;
         }
 
-        .search-info {
-            font-size: 14px;
+        .history-subtitle {
+            font-size: 16px;
             color: #666;
             font-style: italic;
         }
 
-        /* Category Sections */
-        .category-section {
-            margin-top: 50px;
-            margin-bottom: 50px;
-            border-radius: 20px;
-            padding: 30px;
-            background: #fff;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-
-        .category-header {
+        .history-stats {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 25px;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 15px;
         }
 
-        .category-title {
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
             font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            position: relative;
+            font-weight: 700;
+            color: #007bff;
         }
 
-        .view-all-btn {
-            background: #007bff;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            text-decoration: none;
+        .stat-label {
             font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .view-all-btn:hover {
-            background: #0056b3;
-            transform: translateY(-2px);
+            color: #666;
+            margin-top: 5px;
         }
 
         .books-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
+            gap: 20px;
+            margin-top: 30px;
         }
 
         .buku-link {
@@ -389,8 +316,6 @@ function formatTimeAgo($datetime) {
         }
 
         .buku-card {
-            flex: 0 0 auto;
-            width: 180px;
             background: #fff;
             padding: 15px;
             border-radius: 15px;
@@ -399,11 +324,13 @@ function formatTimeAgo($datetime) {
             transition: transform 0.3s, box-shadow 0.3s;
             cursor: pointer;
             position: relative;
+            border: 2px solid transparent;
         }
 
         .buku-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            border-color: #007bff;
         }
 
         .buku-card img {
@@ -411,13 +338,13 @@ function formatTimeAgo($datetime) {
             height: 220px;
             object-fit: cover;
             border-radius: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .judul {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
             color: #333;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -426,67 +353,81 @@ function formatTimeAgo($datetime) {
         }
 
         .penulis {
-            font-size: 10px;
+            font-size: 12px;
             color: #666;
+            font-style: italic;
+            margin-bottom: 8px;
+        }
+
+        .category-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+
+        .read-date {
+            font-size: 11px;
+            color: #999;
             font-style: italic;
         }
 
-        .book-new-badge {
+        .history-badge {
             position: absolute;
-            top: 5px;
-            right: 5px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(45deg, #28a745, #20c997);
             color: white;
             font-size: 8px;
             font-weight: bold;
-            padding: 2px 5px;
+            padding: 3px 6px;
             border-radius: 5px;
             z-index: 10;
         }
 
-        .book-updated-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: linear-gradient(45deg, #4ecdc4, #44a08d);
-            color: white;
-            font-size: 8px;
-            font-weight: bold;
-            padding: 2px 5px;
-            border-radius: 5px;
-            z-index: 10;
-        }
-
-        .update-info {
-            font-size: 10px;
-            color: #666;
-            margin-top: 2px;
-            font-style: italic;
-        }
-
-        .no-books {
+        .no-history {
             text-align: center;
-            padding: 40px;
+            padding: 60px 20px;
             color: #666;
-            font-style: italic;
             grid-column: 1 / -1;
         }
 
-        .clear-search {
-            background: #dc3545;
+        .no-history-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .no-history h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .no-history p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .browse-btn {
+            display: inline-block;
+            background: #007bff;
             color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
+            padding: 12px 24px;
+            border-radius: 25px;
             text-decoration: none;
-            font-size: 12px;
             font-weight: 500;
-            margin-left: 10px;
             transition: all 0.3s;
         }
 
-        .clear-search:hover {
-            background: #c82333;
-            transform: translateY(-1px);
+        .browse-btn:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
         }
 
         /* Footer */
@@ -637,27 +578,19 @@ function formatTimeAgo($datetime) {
                 max-width: 300px;
             }
 
-            .hero-section {
-                margin: 0 20px 20px 20px;
-                height: 250px;
-            }
-
-            .hero-title {
-                font-size: 32px;
-            }
-
-            .hero-subtitle {
-                font-size: 16px;
-            }
-
             .main-content {
                 margin: 0 20px;
                 padding: 20px;
             }
 
             .books-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 10px;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+
+            .history-stats {
+                flex-direction: column;
+                gap: 15px;
             }
 
             .footer-container {
@@ -678,15 +611,6 @@ function formatTimeAgo($datetime) {
             .footer-categories {
                 text-align: center;
             }
-
-            .dropdown-menu {
-                position: fixed;
-                top: auto;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 90%;
-                max-width: 300px;
-            }
         }
     </style>
 </head>
@@ -695,9 +619,10 @@ function formatTimeAgo($datetime) {
     <header class="header">
         <img class="logo" src="logo_e-snap-removebg-preview.png" alt="Logo SMKN 8 Semarang">
         
-         <nav class="nav-menu">
+        <nav class="nav-menu">
+            <a href="homepage.php" class="nav-item">HOME</a>
             
-         <div class="categories-dropdown">
+            <div class="categories-dropdown">
                 <div class="nav-item">
                     CATEGORIES
                     <span class="dropdown-arrow">▼</span>
@@ -715,20 +640,20 @@ function formatTimeAgo($datetime) {
                         <span class="dropdown-icon icon-fiction"></span>
                         Fiction
                     </a>
-                    
                 </div>
             </div>
-            <a class="nav-item" href="history.php">HISTORY</a>
             
-        <form method="GET" action="homepage.php">
-            <div class="search-container">
-                <input type="text" name="search" class="search-input" placeholder="Cari buku favoritmu.." 
-                       value="<?php echo htmlspecialchars($keyword); ?>">
-                <button type="submit" style="background: none; border: none; cursor: pointer;">
-                    <img class="search-icon" src="Search 3.png" alt="Search">
-                </button>
-            </div>
-        </form>
+            <div class="nav-item active">HISTORY</div>
+            
+            <form method="GET" action="homepage.php">
+                <div class="search-container">
+                    <input type="text" name="search" class="search-input" placeholder="Cari buku favoritmu..">
+                    <button type="submit" style="background: none; border: none; cursor: pointer;">
+                        <img class="search-icon" src="Search 3.png" alt="Search">
+                    </button>
+                </div>
+            </form>
+        </nav>
         
         <div class="auth-buttons">
             <button class="btn btn-login">Login</button>
@@ -736,121 +661,98 @@ function formatTimeAgo($datetime) {
         </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero-section">
-        <img src="perpus.jpeg" alt="Perpustakaan SMKN 8 Semarang" class="hero-image" onerror="this.style.display='none'">
-        <div class="hero-overlay">
-            <div class="hero-content">
-            </div>
-        </div>
-    </section>
-
     <!-- Main Content -->
     <main class="main-content">
-        
-        <!-- Search Results Section -->
-        <?php if (!empty($keyword)): ?>
-            <div class="search-results-section">
-                <div class="search-results-header">
-                    <h3 class="search-results-title">Hasil Pencarian untuk "<?php echo htmlspecialchars($keyword); ?>"</h3>
-                    <div class="search-info">
-                        <?php if ($searchResults && mysqli_num_rows($searchResults) > 0): ?>
-                            Ditemukan <?php echo mysqli_num_rows($searchResults); ?> buku
-                        <?php else: ?>
-                            Tidak ada buku yang ditemukan
-                        <?php endif; ?>
-                        <a href="homepage.php" class="clear-search">Hapus Pencarian</a>
-                    </div>
-                </div>
-                <div class="books-grid">
-                    <?php if ($searchResults && mysqli_num_rows($searchResults) > 0): ?>
-                        <?php while ($row = mysqli_fetch_assoc($searchResults)): ?>
-                            <a href="baca.php?id=<?php echo $row['id_buku']; ?>" class="buku-link">
-                                <div class="buku-card">
-                                    <img src="<?php echo htmlspecialchars($row['cover_buku']); ?>" 
-                                         alt="Cover <?php echo htmlspecialchars($row['judul']); ?>"
-                                         onerror="this.src='img/no-image.jpg'">
-                                    <div class="judul"><?php echo htmlspecialchars($row['judul']); ?></div>
-                                    <div class="penulis"><?php echo htmlspecialchars($row['penulis']); ?></div>
-                                </div>
-                            </a>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <div class="no-books">
-                            Tidak ada buku yang ditemukan dengan kata kunci "<?php echo htmlspecialchars($keyword); ?>"
+        <div class="history-section">
+            <div class="history-header">
+                <h1 class="history-title">HISTORY</h1>
+                <p class="history-subtitle">Riwayat buku yang pernah Anda baca</p>
+                
+                <?php if ($historyQuery && $historyQuery->num_rows > 0): ?>
+                    <div class="history-stats">
+                        <div class="stat-item">
+                            <div class="stat-number"><?php echo $historyQuery->num_rows; ?></div>
+                            <div class="stat-label">Total Buku Dibaca</div>
                         </div>
-                    <?php endif; ?>
-                </div>
+                        <div class="stat-item">
+                            <div class="stat-number">
+                                <?php
+                                // Hitung buku yang dibaca bulan ini
+                                $monthlyCount = 0;
+                                $tempResult = $conn->query("
+                                    SELECT COUNT(*) as monthly_count 
+                                    FROM history 
+                                    WHERE id_user = $user_id 
+                                    AND MONTH(tanggal_baca) = MONTH(NOW()) 
+                                    AND YEAR(tanggal_baca) = YEAR(NOW())
+                                ");
+                                if ($tempResult) {
+                                    $monthlyData = $tempResult->fetch_assoc();
+                                    $monthlyCount = $monthlyData['monthly_count'];
+                                }
+                                echo $monthlyCount;
+                                ?>
+                            </div>
+                            <div class="stat-label">Bulan Ini</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">
+                                <?php
+                                // Hitung kategori favorit
+                                $favCategoryResult = $conn->query("
+                                    SELECT k.nama_kategori, COUNT(*) as count
+                                    FROM history h
+                                    JOIN buku b ON h.id_buku = b.id_buku
+                                    JOIN kategori k ON b.id_kategori = k.id_kategori
+                                    WHERE h.id_user = $user_id
+                                    GROUP BY k.id_kategori
+                                    ORDER BY count DESC
+                                    LIMIT 1
+                                ");
+                                $favCategory = "N/A";
+                                if ($favCategoryResult && $favCategoryResult->num_rows > 0) {
+                                    $favData = $favCategoryResult->fetch_assoc();
+                                    $favCategory = ucfirst($favData['nama_kategori']);
+                                }
+                                echo $favCategory;
+                                ?>
+                            </div>
+                            <div class="stat-label">Kategori Favorit</div>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
-        <?php endif; ?>
 
-        <!-- New Books Section -->
-        <?php if (empty($keyword)): ?>
-        <div class="category-section">
-            <div class="category-header">
-                <h3 class="category-title">New</h3>
-            </div>
             <div class="books-grid">
-                <?php if ($newBooksQuery && $newBooksQuery->num_rows > 0): ?>
-                    <?php while ($buku = $newBooksQuery->fetch_assoc()): ?>
-                        <?php
-                        // Menentukan badge yang akan ditampilkan
-                        $badgeClass = '';
-                        $badgeText = '';
-                        if ($buku['status'] == 'new') {
-                            $badgeClass = 'book-new-badge';
-                        } elseif ($buku['status'] == 'updated') {
-                            $badgeClass = 'book-updated-badge';
-                            $badgeText = 'UPDATED';
-                        }
-                        
-                        $timeInfo = formatTimeAgo($buku['latest_activity']);
-                        ?>
+                <?php if ($historyQuery && $historyQuery->num_rows > 0): ?>
+                    <?php while ($buku = $historyQuery->fetch_assoc()): ?>
                         <a href="baca.php?id=<?php echo $buku['id_buku']; ?>" class="buku-link">
                             <div class="buku-card">
-                                <?php if ($badgeText): ?>
-                                    <span class="<?php echo $badgeClass; ?>"><?php echo $badgeText; ?></span>
+                                <span class="history-badge">READ</span>
+                                <img src="<?php echo htmlspecialchars($buku['cover_buku']); ?>" 
+                                     alt="Cover <?php echo htmlspecialchars($buku['judul']); ?>"
+                                     onerror="this.src='img/no-image.jpg'">
+                                <div class="judul"><?php echo htmlspecialchars($buku['judul']); ?></div>
+                                <div class="penulis"><?php echo htmlspecialchars($buku['penulis']); ?></div>
+                                <?php if ($buku['nama_kategori']): ?>
+                                    <div class="category-tag"><?php echo htmlspecialchars($buku['nama_kategori']); ?></div>
                                 <?php endif; ?>
-                                <img src="<?php echo htmlspecialchars($buku['cover_buku']); ?>" 
-                                     alt="Cover <?php echo htmlspecialchars($buku['judul']); ?>"
-                                     onerror="this.src='img/no-image.jpg'">
-                                <div class="judul"><?php echo htmlspecialchars($buku['judul']); ?></div>
-                                <div class="penulis"><?php echo htmlspecialchars($buku['penulis']); ?></div>
-                                <div class="update-info"><?php echo $timeInfo; ?></div>
+                                <div class="read-date">
+                                    Dibaca <?php echo formatTimeAgo($buku['days_ago']); ?>
+                                </div>
                             </div>
                         </a>
                     <?php endwhile; ?>
                 <?php else: ?>
-                    <div class="no-books">Belum ada buku terbaru</div>
+                    <div class="no-history">
+                        <div class="no-history-icon">📚</div>
+                        <h3>Belum Ada Riwayat Baca</h3>
+                        <p>Anda belum membaca buku apapun. Mulai jelajahi koleksi kami!</p>
+                        <a href="homepage.php" class="browse-btn">Jelajahi Buku</a>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
-
-        <!-- Education Category Section -->
-        <div class="category-section">
-            <div class="category-header">
-                <h3 class="category-title">Education</h3>
-            </div>
-            <div class="books-grid">
-                <?php if ($educationQuery && $educationQuery->num_rows > 0): ?>
-                    <?php while ($buku = $educationQuery->fetch_assoc()): ?>
-                        <a href="baca.php?id=<?php echo $buku['id_buku']; ?>" class="buku-link">
-                            <div class="buku-card">
-                                <img src="<?php echo htmlspecialchars($buku['cover_buku']); ?>" 
-                                     alt="Cover <?php echo htmlspecialchars($buku['judul']); ?>"
-                                     onerror="this.src='img/no-image.jpg'">
-                                <div class="judul"><?php echo htmlspecialchars($buku['judul']); ?></div>
-                                <div class="penulis"><?php echo htmlspecialchars($buku['penulis']); ?></div>
-                            </div>
-                        </a>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <div class="no-books">Belum ada buku Education</div>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
-        
     </main>
 
     <!-- Footer -->
@@ -888,9 +790,9 @@ function formatTimeAgo($datetime) {
                 <div class="footer-categories">
                     <h4>Categories</h4>
                     <ul class="categories-list">
-                        <li><span>EDUCATION</span></li>
-                        <li><span>KIDS</span></li>
-                        <li><span>FICTION</span></li>
+                        <li><a href="education.php">EDUCATION</a></li>
+                        <li><a href="kids.php">KIDS</a></li>
+                        <li><a href="fiction.php">FICTION</a></li>
                     </ul>
                 </div>
             </div>
