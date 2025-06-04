@@ -7,57 +7,39 @@ if (!isset($_SESSION['id_user'])) {
     header("Location: login.php");
     exit();
 }
-
-// Ambil data user dari session
-$user_id = $_SESSION['id_user'];
-$user_nama = $_SESSION['nama'];
-$user_role = $_SESSION['role'];
-
-
-// Ambil keyword dari input
+// Ambil parameter kategori dari URL
+$kategori = isset($_GET['category']) ? $_GET['category'] : 'education';
 $keyword = isset($_GET['search']) ? trim($_GET['search']) : '';
 
-// Query untuk mengambil buku yang baru ditambahkan (dalam 7 hari terakhir) 
-// ATAU buku yang baru diupdate (dalam 3 hari terakhir)
-$newBooksQuery = $conn->query("
-    SELECT 
-        id_buku, 
-        judul, 
-        penulis, 
-        cover_buku, 
-        created_at,
-        updated_at,
-        CASE 
-            WHEN DATEDIFF(NOW(), created_at) <= 7 THEN 'new'
-            WHEN DATEDIFF(NOW(), updated_at) <= 3 THEN 'updated'
-            ELSE 'old'
-        END as status,
-        GREATEST(created_at, COALESCE(updated_at, created_at)) as latest_activity
-    FROM buku 
-    WHERE 
-        DATEDIFF(NOW(), created_at) <= 7 
-        OR DATEDIFF(NOW(), COALESCE(updated_at, created_at)) <= 3
-    ORDER BY latest_activity DESC 
-    LIMIT 5
-");
-
-// Query untuk mengambil 5 buku dari kategori education
-$educationQuery = $conn->query("
-    SELECT b.id_buku, b.judul, b.penulis, b.cover_buku 
+// Query untuk mengambil buku berdasarkan kategori
+$categoryQuery = "
+    SELECT b.id_buku, b.judul, b.penulis, b.cover_buku, k.nama_kategori
     FROM buku b 
     JOIN kategori k ON b.id_kategori = k.id_kategori 
-    WHERE k.nama_kategori = 'education' 
-    ORDER BY b.id_buku DESC 
-    LIMIT 5
-");
+    WHERE k.nama_kategori = ?
+";
 
-// Query untuk hasil pencarian
-$searchResults = null;
+// Tambahkan kondisi pencarian jika ada keyword
 if (!empty($keyword)) {
-    $keyword_escaped = mysqli_real_escape_string($conn, $keyword);
-    $searchQuery = "SELECT id_buku, judul, penulis, cover_buku FROM buku WHERE judul LIKE '%$keyword_escaped%' OR penulis LIKE '%$keyword_escaped%'";
-    $searchResults = mysqli_query($conn, $searchQuery);
+    $categoryQuery .= " AND (b.judul LIKE ? OR b.penulis LIKE ?)";
 }
+
+$categoryQuery .= " ORDER BY b.id_buku DESC";
+
+$stmt = $conn->prepare($categoryQuery);
+
+if (!empty($keyword)) {
+    $searchTerm = "%$keyword%";
+    $stmt->bind_param("sss", $kategori, $searchTerm, $searchTerm);
+} else {
+    $stmt->bind_param("s", $kategori);
+}
+
+$stmt->execute();
+$categoryResult = $stmt->get_result();
+
+// Mengubah kategori untuk display
+$displayCategory = strtoupper($kategori);
 
 // Function untuk format waktu
 function formatTimeAgo($datetime) {
@@ -80,9 +62,9 @@ function formatTimeAgo($datetime) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Perpustakaan Digital - SMKN 8 Semarang</title>
+    <title><?php echo $displayCategory; ?> - Perpustakaan Digital SMKN 8 Semarang</title>
     <style>
-         * {
+        * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
@@ -125,12 +107,15 @@ function formatTimeAgo($datetime) {
             cursor: pointer;
             transition: color 0.3s;
             position: relative;
-            text-decoration: none;
-            
         }
 
         .nav-item:hover {
             color: #000;
+        }
+
+        .nav-item a {
+            text-decoration: none;
+            color: inherit;
         }
 
         /* Categories Dropdown */
@@ -271,109 +256,60 @@ function formatTimeAgo($datetime) {
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
-        /* Hero Section */
-        .hero-section {
-            margin: 0 50px 30px 50px;
-            border-radius: 30px;
-            overflow: hidden;
-            position: relative;
-            height: 400px;
-        }
-
-        .hero-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.9;
-        }
-
-        .hero-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .hero-title {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .hero-subtitle {
-            font-size: 20px;
-            font-weight: 400;
-            opacity: 0.95;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-
         /* Main Content */
         .main-content {
-            background-color: #7cb3e661;
+            background: linear-gradient( #7cb3e661);
             border-radius: 30px;
             margin: 0 50px;
             padding: 40px;
             min-height: 800px;
         }
 
-        /* Search Results Section */
-        .search-results-section {
-            margin-bottom: 50px;
-            border-radius: 20px;
-            padding: 30px;
-            background: #fff;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-
-        .search-results-header {
-            margin-bottom: 25px;
-        }
-
-        .search-results-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .search-info {
-            font-size: 14px;
-            color: #666;
-            font-style: italic;
-        }
-
-        /* Category Sections */
-        .category-section {
-            margin-top: 50px;
-            margin-bottom: 50px;
-            border-radius: 20px;
-            padding: 30px;
-            background: #fff;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-
-        .category-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 25px;
-        }
 
         .category-title {
-            font-size: 24px;
-            font-weight: 600;
+            font-size: 48px;
+            font-weight: 700;
             color: #333;
-            position: relative;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-align: center;
         }
 
-        .view-all-btn {
-            background: #007bff;
+        .breadcrumb {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .breadcrumb a {
+            color: #007bff;
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        /* Search Results Info */
+        .search-info {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .results-count {
+            font-size: 16px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .clear-search {
+            background: #dc3545;
             color: white;
             padding: 8px 16px;
             border-radius: 20px;
@@ -383,40 +319,50 @@ function formatTimeAgo($datetime) {
             transition: all 0.3s;
         }
 
-        .view-all-btn:hover {
-            background: #0056b3;
+        .clear-search:hover {
+            background: #c82333;
             transform: translateY(-2px);
+        }
+
+        /* Books Grid */
+        .books-container {
+            background:  #4ecdc4, #44a08d;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
         }
 
         .books-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
+            gap: 20px;
+            justify-items: center;
         }
 
         .buku-link {
             text-decoration: none;
             color: inherit;
             display: block;
-            position: relative;
+            width: 100%;
+            max-width: 200px;
         }
 
         .buku-card {
-            flex: 0 0 auto;
-            width: 180px;
             background: #fff;
             padding: 15px;
             border-radius: 15px;
             text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
+            transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
+            width: 100%;
+            border: 2px solid transparent;
         }
 
         .buku-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            transform: translateY(-8px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.2);
         }
 
         .buku-card img {
@@ -424,82 +370,47 @@ function formatTimeAgo($datetime) {
             height: 220px;
             object-fit: cover;
             border-radius: 10px;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
+            transition: transform 0.3s ease;
+        }
+
+        .buku-card:hover img {
+            transform: scale(1.05);
         }
 
         .judul {
-            font-size: 12px;
+            font-size: 14px;
             font-weight: 600;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
             color: #333;
+            line-height: 1.4;
+            height: 40px;
             overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
         }
 
         .penulis {
-            font-size: 10px;
+            font-size: 12px;
             color: #666;
             font-style: italic;
-        }
-
-        .book-new-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
-            color: white;
-            font-size: 8px;
-            font-weight: bold;
-            padding: 2px 5px;
-            border-radius: 5px;
-            z-index: 10;
-        }
-
-        .book-updated-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: linear-gradient(45deg, #4ecdc4, #44a08d);
-            color: white;
-            font-size: 8px;
-            font-weight: bold;
-            padding: 2px 5px;
-            border-radius: 5px;
-            z-index: 10;
-        }
-
-        .update-info {
-            font-size: 10px;
-            color: #666;
-            margin-top: 2px;
-            font-style: italic;
+            margin-bottom: 5px;
         }
 
         .no-books {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-style: italic;
             grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+            font-size: 18px;
+            font-style: italic;
         }
 
-        .clear-search {
-            background: #dc3545;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            margin-left: 10px;
-            transition: all 0.3s;
-        }
-
-        .clear-search:hover {
-            background: #c82333;
-            transform: translateY(-1px);
+        .no-books-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+            opacity: 0.5;
         }
 
         /* Footer */
@@ -632,6 +543,18 @@ function formatTimeAgo($datetime) {
         }
 
         /* Responsive Design */
+        @media (max-width: 1200px) {
+            .books-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            .books-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
         @media (max-width: 768px) {
             .header {
                 flex-direction: column;
@@ -650,27 +573,18 @@ function formatTimeAgo($datetime) {
                 max-width: 300px;
             }
 
-            .hero-section {
-                margin: 0 20px 20px 20px;
-                height: 250px;
-            }
-
-            .hero-title {
-                font-size: 32px;
-            }
-
-            .hero-subtitle {
-                font-size: 16px;
-            }
-
             .main-content {
                 margin: 0 20px;
                 padding: 20px;
             }
 
+            .category-title {
+                font-size: 32px;
+            }
+
             .books-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 10px;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
             }
 
             .footer-container {
@@ -691,16 +605,15 @@ function formatTimeAgo($datetime) {
             .footer-categories {
                 text-align: center;
             }
+        }
 
-            .dropdown-menu {
-                position: fixed;
-                top: auto;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 90%;
-                max-width: 300px;
+        @media (max-width: 480px) {
+            .books-grid {
+                grid-template-columns: 1fr;
             }
         }
+
+        
     </style>
 </head>
 <body>
@@ -708,40 +621,45 @@ function formatTimeAgo($datetime) {
     <header class="header">
         <img class="logo" src="logo_e-snap-removebg-preview.png" alt="Logo SMKN 8 Semarang">
         
-         <nav class="nav-menu">
+        <nav class="nav-menu">
+            <div class="nav-item">
+                <a href="homepage.php">HOME</a>
+            </div>
             
-         <div class="categories-dropdown">
+            <div class="categories-dropdown">
                 <div class="nav-item">
                     CATEGORIES
                     <span class="dropdown-arrow">▼</span>
                 </div>
                 <div class="dropdown-menu">
-                    <a href="education.php?category=education" class="dropdown-item">
+                    <a href="?category=education" class="dropdown-item">
                         <span class="dropdown-icon icon-education"></span>
                         Education
                     </a>
-                    <a href="kids.php?category=kids" class="dropdown-item">
+                    <a href="?category=kids" class="dropdown-item">
                         <span class="dropdown-icon icon-kids"></span>
                         Kids
                     </a>
-                    <a href="fiction.php?category=fiksi" class="dropdown-item">
+                    <a href="?category=fiction" class="dropdown-item">
                         <span class="dropdown-icon icon-fiction"></span>
                         Fiction
                     </a>
-                    
                 </div>
             </div>
-            <a class="nav-item" href="history.php">HISTORY</a>
             
-        <form method="GET" action="homepage.php">
-            <div class="search-container">
-                <input type="text" name="search" class="search-input" placeholder="Cari buku favoritmu.." 
-                       value="<?php echo htmlspecialchars($keyword); ?>">
-                <button type="submit" style="background: none; border: none; cursor: pointer;">
-                    <img class="search-icon" src="Search 3.png" alt="Search">
-                </button>
-            </div>
-        </form>
+            <div class="nav-item">HISTORY</div>
+            
+            <form method="GET" style="display: flex;">
+                <input type="hidden" name="category" value="<?php echo htmlspecialchars($kategori); ?>">
+                <div class="search-container">
+                    <input type="text" name="search" class="search-input" placeholder="Cari buku dalam kategori <?php echo $displayCategory; ?>.." 
+                           value="<?php echo htmlspecialchars($keyword); ?>">
+                    <button type="submit" style="background: none; border: none; cursor: pointer;">
+                        <img class="search-icon" src="Search 3.png" alt="Search">
+                    </button>
+                </div>
+            </form>
+        </nav>
         
         <div class="auth-buttons">
             <button class="btn btn-login">Login</button>
@@ -749,104 +667,33 @@ function formatTimeAgo($datetime) {
         </div>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero-section">
-        <img src="perpus.jpeg" alt="Perpustakaan SMKN 8 Semarang" class="hero-image" onerror="this.style.display='none'">
-        <div class="hero-overlay">
-            <div class="hero-content">
-            </div>
-        </div>
-    </section>
-
     <!-- Main Content -->
     <main class="main-content">
-        
-        <!-- Search Results Section -->
+        <!-- Category Header -->
+        <div class="category-header">
+            <h1 class="category-title"><?php echo $displayCategory; ?></h1>
+            </div>
+        </div>
+
+        <!-- Search Info -->
         <?php if (!empty($keyword)): ?>
-            <div class="search-results-section">
-                <div class="search-results-header">
-                    <h3 class="search-results-title">Hasil Pencarian untuk "<?php echo htmlspecialchars($keyword); ?>"</h3>
-                    <div class="search-info">
-                        <?php if ($searchResults && mysqli_num_rows($searchResults) > 0): ?>
-                            Ditemukan <?php echo mysqli_num_rows($searchResults); ?> buku
-                        <?php else: ?>
-                            Tidak ada buku yang ditemukan
-                        <?php endif; ?>
-                        <a href="homepage.php" class="clear-search">Hapus Pencarian</a>
-                    </div>
-                </div>
-                <div class="books-grid">
-                    <?php if ($searchResults && mysqli_num_rows($searchResults) > 0): ?>
-                        <?php while ($row = mysqli_fetch_assoc($searchResults)): ?>
-                            <a href="baca.php?id=<?php echo $row['id_buku']; ?>" class="buku-link">
-                                <div class="buku-card">
-                                    <img src="<?php echo htmlspecialchars($row['cover_buku']); ?>" 
-                                         alt="Cover <?php echo htmlspecialchars($row['judul']); ?>"
-                                         onerror="this.src='img/no-image.jpg'">
-                                    <div class="judul"><?php echo htmlspecialchars($row['judul']); ?></div>
-                                    <div class="penulis"><?php echo htmlspecialchars($row['penulis']); ?></div>
-                                </div>
-                            </a>
-                        <?php endwhile; ?>
+            <div class="search-info">
+                <div class="results-count">
+                    <?php if ($categoryResult && $categoryResult->num_rows > 0): ?>
+                        Ditemukan <?php echo $categoryResult->num_rows; ?> buku dengan kata kunci "<?php echo htmlspecialchars($keyword); ?>" dalam kategori <?php echo $displayCategory; ?>
                     <?php else: ?>
-                        <div class="no-books">
-                            Tidak ada buku yang ditemukan dengan kata kunci "<?php echo htmlspecialchars($keyword); ?>"
-                        </div>
+                        Tidak ada buku yang ditemukan dengan kata kunci "<?php echo htmlspecialchars($keyword); ?>" dalam kategori <?php echo $displayCategory; ?>
                     <?php endif; ?>
                 </div>
+                <a href="?category=<?php echo $kategori; ?>" class="clear-search">Hapus Pencarian</a>
             </div>
         <?php endif; ?>
 
-        <!-- New Books Section -->
-        <?php if (empty($keyword)): ?>
-        <div class="category-section">
-            <div class="category-header">
-                <h3 class="category-title">New</h3>
-            </div>
+        <!-- Books Container -->
+        <div class="books-container">
             <div class="books-grid">
-                <?php if ($newBooksQuery && $newBooksQuery->num_rows > 0): ?>
-                    <?php while ($buku = $newBooksQuery->fetch_assoc()): ?>
-                        <?php
-                        // Menentukan badge yang akan ditampilkan
-                        $badgeClass = '';
-                        $badgeText = '';
-                        if ($buku['status'] == 'new') {
-                            $badgeClass = 'book-new-badge';
-                        } elseif ($buku['status'] == 'updated') {
-                            $badgeClass = 'book-updated-badge';
-                            $badgeText = 'UPDATED';
-                        }
-                        
-                        $timeInfo = formatTimeAgo($buku['latest_activity']);
-                        ?>
-                        <a href="baca.php?id=<?php echo $buku['id_buku']; ?>" class="buku-link">
-                            <div class="buku-card">
-                                <?php if ($badgeText): ?>
-                                    <span class="<?php echo $badgeClass; ?>"><?php echo $badgeText; ?></span>
-                                <?php endif; ?>
-                                <img src="<?php echo htmlspecialchars($buku['cover_buku']); ?>" 
-                                     alt="Cover <?php echo htmlspecialchars($buku['judul']); ?>"
-                                     onerror="this.src='img/no-image.jpg'">
-                                <div class="judul"><?php echo htmlspecialchars($buku['judul']); ?></div>
-                                <div class="penulis"><?php echo htmlspecialchars($buku['penulis']); ?></div>
-                                <div class="update-info"><?php echo $timeInfo; ?></div>
-                            </div>
-                        </a>
-                    <?php endwhile; ?>
-                <?php else: ?>
-                    <div class="no-books">Belum ada buku terbaru</div>
-                <?php endif; ?>
-            </div>
-        </div>
-
-        <!-- Education Category Section -->
-        <div class="category-section">
-            <div class="category-header">
-                <h3 class="category-title">Education</h3>
-            </div>
-            <div class="books-grid">
-                <?php if ($educationQuery && $educationQuery->num_rows > 0): ?>
-                    <?php while ($buku = $educationQuery->fetch_assoc()): ?>
+                <?php if ($categoryResult && $categoryResult->num_rows > 0): ?>
+                    <?php while ($buku = $categoryResult->fetch_assoc()): ?>
                         <a href="baca.php?id=<?php echo $buku['id_buku']; ?>" class="buku-link">
                             <div class="buku-card">
                                 <img src="<?php echo htmlspecialchars($buku['cover_buku']); ?>" 
@@ -858,12 +705,17 @@ function formatTimeAgo($datetime) {
                         </a>
                     <?php endwhile; ?>
                 <?php else: ?>
-                    <div class="no-books">Belum ada buku Education</div>
+                    <div class="no-books">
+                        <div class="no-books-icon">📚</div>
+                        <?php if (!empty($keyword)): ?>
+                            Tidak ada buku yang ditemukan dengan kata kunci "<?php echo htmlspecialchars($keyword); ?>" dalam kategori <?php echo $displayCategory; ?>
+                        <?php else: ?>
+                            Belum ada buku dalam kategori <?php echo $displayCategory; ?>
+                        <?php endif; ?>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
-        <?php endif; ?>
-        
     </main>
 
     <!-- Footer -->
@@ -901,9 +753,9 @@ function formatTimeAgo($datetime) {
                 <div class="footer-categories">
                     <h4>Categories</h4>
                     <ul class="categories-list">
-                        <li><span>EDUCATION</span></li>
-                        <li><span>KIDS</span></li>
-                        <li><span>FICTION</span></li>
+                        <li><a href="?category=education">EDUCATION</a></li>
+                        <li><a href="?category=kids">KIDS</a></li>
+                        <li><a href="?category=fiction">FICTION</a></li>
                     </ul>
                 </div>
             </div>
