@@ -266,7 +266,6 @@ function formatTimeAgo($datetime) {
             min-height: 800px;
         }
 
-
         .category-title {
             font-size: 48px;
             font-weight: 700;
@@ -327,7 +326,7 @@ function formatTimeAgo($datetime) {
 
         /* Books Grid */
         .books-container {
-            background:  #4ecdc4, #44a08d;
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
             border-radius: 20px;
             padding: 30px;
             box-shadow: 0 8px 25px rgba(0,0,0,0.1);
@@ -543,16 +542,54 @@ function formatTimeAgo($datetime) {
             color: rgba(0,0,0,0.8);
         }
 
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .mobile-menu-toggle span {
+            width: 25px;
+            height: 3px;
+            background-color: #333;
+            margin: 3px 0;
+            transition: 0.3s;
+        }
+
         /* Responsive Design */
         @media (max-width: 1200px) {
             .books-grid {
                 grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .header {
+                padding: 15px 30px;
+                margin: 30px 30px;
+            }
+            
+            .main-content {
+                margin: 0 30px;
+                padding: 30px;
             }
         }
 
         @media (max-width: 992px) {
             .books-grid {
                 grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .nav-menu {
+                gap: 20px;
+            }
+            
+            .nav-item {
+                font-size: 16px;
+            }
+            
+            .search-container {
+                width: 250px;
             }
         }
 
@@ -562,11 +599,13 @@ function formatTimeAgo($datetime) {
                 gap: 20px;
                 margin: 20px;
                 padding: 20px;
+                border-radius: 20px;
             }
 
             .nav-menu {
                 flex-direction: column;
                 gap: 15px;
+                width: 100%;
             }
 
             .search-container {
@@ -574,9 +613,15 @@ function formatTimeAgo($datetime) {
                 max-width: 300px;
             }
 
+            .auth-buttons {
+                justify-content: center;
+                width: 100%;
+            }
+
             .main-content {
                 margin: 0 20px;
                 padding: 20px;
+                border-radius: 20px;
             }
 
             .category-title {
@@ -586,6 +631,24 @@ function formatTimeAgo($datetime) {
             .books-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 15px;
+            }
+
+            .books-container {
+                padding: 20px;
+            }
+
+            .buku-card img {
+                height: 180px;
+            }
+
+            .search-info {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+
+            .footer {
+                padding: 30px 20px;
             }
 
             .footer-container {
@@ -608,13 +671,95 @@ function formatTimeAgo($datetime) {
             }
         }
 
-        @media (max-width: 480px) {
+        @media (max-width: 600px) {
+            .header {
+                margin: 15px;
+                padding: 15px;
+            }
+            
+            .main-content {
+                margin: 0 15px;
+                padding: 15px;
+            }
+            
+            .category-title {
+                font-size: 28px;
+                margin-bottom: 20px;
+            }
+            
             .books-grid {
-                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+            
+            .books-container {
+                padding: 15px;
             }
         }
 
-        
+        @media (max-width: 480px) {
+            .books-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+            
+            .buku-card {
+                padding: 10px;
+            }
+            
+            .buku-card img {
+                height: 140px;
+            }
+            
+            .judul {
+                font-size: 12px;
+                height: 35px;
+            }
+            
+            .penulis {
+                font-size: 11px;
+            }
+            
+            .category-title {
+                font-size: 24px;
+            }
+            
+            .nav-item {
+                font-size: 14px;
+            }
+            
+            .search-input {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .header {
+                margin: 10px;
+                padding: 12px;
+            }
+            
+            .main-content {
+                margin: 0 10px;
+                padding: 12px;
+            }
+            
+            .books-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+            
+            .buku-card img {
+                height: 120px;
+            }
+            
+            .category-title {
+                font-size: 20px;
+            }
+            
+            .footer {
+                padding: 20px 10px;
+            }
+        }
     </style>
 </head>
 <body>
