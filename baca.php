@@ -38,35 +38,6 @@ if (isset($_SESSION['id_user'])) {
 function isMobile() {
     return preg_match("/(android|avantgo|blackberry|bolt|boost|cricket|docomo|fone|hiptop|mini|mobi|palm|phone|pie|tablet|up\.browser|up\.link|webos|wos)/i", $_SERVER["HTTP_USER_AGENT"]);
 }
-
-// Fungsi untuk membuat URL absolut
-function getAbsoluteURL($relativePath) {
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https://' : 'http://';
-    $host = $_SERVER['HTTP_HOST'];
-    $currentDir = dirname($_SERVER['REQUEST_URI']);
-    
-    // Pastikan tidak ada double slash
-    $currentDir = rtrim($currentDir, '/');
-    $relativePath = ltrim($relativePath, '/');
-    
-    return $protocol . $host . $currentDir . '/' . $relativePath;
-}
-
-// Cek keberadaan file
-$file_exists = false;
-$file_path = '';
-$absolute_url = '';
-$file_size = 0;
-
-if (!empty($row['file_buku'])) {
-    $file_path = 'file/' . $row['file_buku'];
-    $absolute_url = getAbsoluteURL($file_path);
-    
-    if (file_exists($file_path)) {
-        $file_exists = true;
-        $file_size = filesize($file_path);
-    }
-}
 ?>
 
 <!DOCTYPE html>
@@ -111,27 +82,6 @@ if (!empty($row['file_buku'])) {
             padding: 20px;
         }
 
-        .debug-info {
-            background: #e3f2fd;
-            border: 1px solid #2196f3;
-            border-radius: 10px;
-            padding: 15px;
-            margin-bottom: 20px;
-            font-family: monospace;
-            font-size: 12px;
-            display: none;
-        }
-
-        .debug-info.show {
-            display: block;
-        }
-
-        .debug-info h4 {
-            color: #1976d2;
-            margin-bottom: 10px;
-            font-family: 'Segoe UI', sans-serif;
-        }
-
         .controls {
             background: white;
             padding: 15px;
@@ -164,26 +114,21 @@ if (!empty($row['file_buku'])) {
             background: #5a6fd8;
         }
 
-        .btn-secondary { background: #6c757d; }
-        .btn-secondary:hover { background: #5a6268; }
-        .btn-success { background: #28a745; }
-        .btn-success:hover { background: #218838; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        .btn-warning:hover { background: #e0a800; }
-        .btn-danger { background: #dc3545; }
-        .btn-danger:hover { background: #c82333; }
-
-        .file-status {
-            background: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin-bottom: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        .btn-secondary {
+            background: #6c757d;
         }
 
-        .status-ok { border-left: 4px solid #28a745; }
-        .status-error { border-left: 4px solid #dc3545; }
-        .status-warning { border-left: 4px solid #ffc107; }
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+
+        .btn-success {
+            background: #28a745;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+        }
 
         .pdf-container {
             background: white;
@@ -282,14 +227,32 @@ if (!empty($row['file_buku'])) {
             }
         }
 
-        .url-test {
-            margin-top: 15px;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 12px;
-            word-break: break-all;
+        /* Fullscreen styles */
+        .pdf-container.fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 9999;
+            border-radius: 0;
+        }
+
+        .pdf-container.fullscreen .pdf-viewer {
+            height: 100vh;
+        }
+
+        .fallback-viewer {
+            text-align: center;
+            padding: 40px 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .fallback-viewer h3 {
+            color: #667eea;
+            margin-bottom: 20px;
         }
     </style>
 </head>
@@ -302,36 +265,6 @@ if (!empty($row['file_buku'])) {
     </div>
 
     <div class="container">
-        <!-- Debug Info -->
-        <div class="debug-info" id="debugInfo">
-            <h4>🔍 Debug Information</h4>
-            <p><strong>File Name:</strong> <?= htmlspecialchars($row['file_buku'] ?? 'NULL'); ?></p>
-            <p><strong>Relative Path:</strong> <?= htmlspecialchars($file_path); ?></p>
-            <p><strong>Absolute URL:</strong> <?= htmlspecialchars($absolute_url); ?></p>
-            <p><strong>File Exists:</strong> <?= $file_exists ? 'YES' : 'NO'; ?></p>
-            <p><strong>File Size:</strong> <?= $file_exists ? number_format($file_size) . ' bytes' : 'N/A'; ?></p>
-            <p><strong>Server Path:</strong> <?= realpath($file_path) ?: 'Path not found'; ?></p>
-            <p><strong>Current Directory:</strong> <?= __DIR__; ?></p>
-            <p><strong>User Agent:</strong> <?= htmlspecialchars($_SERVER['HTTP_USER_AGENT'] ?? 'Unknown'); ?></p>
-            <p><strong>Is Mobile:</strong> <?= isMobile() ? 'YES' : 'NO'; ?></p>
-        </div>
-
-        <!-- File Status -->
-        <div class="file-status <?= $file_exists ? 'status-ok' : 'status-error'; ?>">
-            <?php if ($file_exists): ?>
-                <h4 style="color: #28a745;">✅ File PDF Ditemukan</h4>
-                <p>File: <strong><?= htmlspecialchars($row['file_buku']); ?></strong></p>
-                <p>Ukuran: <strong><?= number_format($file_size / 1024, 2); ?> KB</strong></p>
-            <?php else: ?>
-                <h4 style="color: #dc3545;">❌ File PDF Tidak Ditemukan</h4>
-                <p>File yang dicari: <strong><?= htmlspecialchars($row['file_buku'] ?? 'NULL'); ?></strong></p>
-                <p>Path lengkap: <strong><?= htmlspecialchars($file_path); ?></strong></p>
-            <?php endif; ?>
-            <button onclick="toggleDebug()" class="btn btn-warning" style="margin-top: 10px;">
-                🔍 Toggle Debug Info
-            </button>
-        </div>
-
         <div class="controls">
             <div>
                 <a href="homepage.php" class="btn btn-secondary">← Kembali ke Beranda</a>
@@ -340,45 +273,27 @@ if (!empty($row['file_buku'])) {
                 <?php if (!isMobile()): ?>
                     <button onclick="toggleFullscreen()" class="btn" id="fullscreenBtn">📖 Mode Fullscreen</button>
                 <?php endif; ?>
-                
-                <?php if ($file_exists): ?>
-                    <button onclick="downloadPDF()" class="btn">📥 Download</button>
-                    <button onclick="testURL()" class="btn btn-warning">🔗 Test URL</button>
-                    <a href="<?= htmlspecialchars($absolute_url); ?>" target="_blank" class="btn btn-success" id="openTabBtn">
-                        🔗 Buka di Tab Baru
-                    </a>
-                <?php else: ?>
-                    <button class="btn btn-danger" disabled>❌ File Tidak Tersedia</button>
-                <?php endif; ?>
+                <button onclick="downloadPDF()" class="btn">📥 Download</button>
+                <a href="file/<?= htmlspecialchars($row['file_buku']); ?>" target="_blank" class="btn btn-success">🔗 Buka di Tab Baru</a>
             </div>
         </div>
 
-        <?php if ($file_exists): ?>
+        <?php if (!empty($row['file_buku'])): ?>
             <?php if (isMobile()): ?>
                 <!-- Mobile Warning dan Options -->
                 <div class="mobile-warning">
                     <h3>📱 Tampilan Mobile Terdeteksi</h3>
-                    <p>Pilih cara terbaik untuk membuka PDF:</p>
+                    <p>Beberapa browser mobile mungkin tidak dapat menampilkan PDF secara langsung. Gunakan salah satu opsi di bawah:</p>
                     <div class="mobile-options">
-                        <a href="<?= htmlspecialchars($absolute_url); ?>" target="_blank" class="btn btn-success">
+                        <a href="file/<?= htmlspecialchars($row['file_buku']); ?>" target="_blank" class="btn btn-success">
                             🔗 Buka PDF di Tab Baru
                         </a>
                         <button onclick="downloadPDF()" class="btn">
                             📥 Download PDF
                         </button>
-                        <button onclick="openInBrowser()" class="btn btn-warning">
-                            🌐 Buka dengan Browser Default
-                        </button>
                         <button onclick="showMobileViewer()" class="btn" id="showViewerBtn">
                             👁️ Coba Tampilkan di Sini
                         </button>
-                    </div>
-                    
-                    <!-- URL Test Area -->
-                    <div class="url-test">
-                        <strong>URL yang akan diakses:</strong><br>
-                        <span id="urlDisplay"><?= htmlspecialchars($absolute_url); ?></span>
-                        <br><button onclick="copyURL()" class="btn" style="margin-top: 5px; padding: 5px 10px; min-width: auto;">📋 Copy URL</button>
                     </div>
                 </div>
 
@@ -397,6 +312,21 @@ if (!empty($row['file_buku'])) {
                         title="PDF Viewer - <?= htmlspecialchars($row['judul']); ?>">
                     </iframe>
                 </div>
+
+                <!-- Fallback Viewer -->
+                <div class="fallback-viewer" id="fallbackViewer" style="display: none;">
+                    <h3>❌ PDF Tidak Dapat Ditampilkan</h3>
+                    <p>Browser Anda tidak mendukung tampilan PDF secara langsung.</p>
+                    <p>Silakan gunakan opsi download atau buka di tab baru.</p>
+                    <div style="margin-top: 20px;">
+                        <a href="file/<?= htmlspecialchars($row['file_buku']); ?>" target="_blank" class="btn btn-success">
+                            🔗 Buka di Tab Baru
+                        </a>
+                        <button onclick="downloadPDF()" class="btn" style="margin-left: 10px;">
+                            📥 Download PDF
+                        </button>
+                    </div>
+                </div>
             <?php else: ?>
                 <!-- Desktop View -->
                 <div class="pdf-container" id="pdfContainer">
@@ -405,7 +335,7 @@ if (!empty($row['file_buku'])) {
                         <p>Memuat PDF...</p>
                     </div>
                     <iframe 
-                        src="<?= htmlspecialchars($absolute_url); ?>#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH" 
+                        src="file/<?= htmlspecialchars($row['file_buku']); ?>#toolbar=1&navpanes=1&scrollbar=1&page=1&view=FitH" 
                         class="pdf-viewer" 
                         id="pdfViewer"
                         onload="hideLoading()"
@@ -417,8 +347,7 @@ if (!empty($row['file_buku'])) {
         <?php else: ?>
             <div class="error-message">
                 <h3>📚 File buku tidak tersedia</h3>
-                <p>File PDF untuk buku "<strong><?= htmlspecialchars($row['judul']); ?></strong>" tidak ditemukan di server.</p>
-                <p>Path yang dicari: <code><?= htmlspecialchars($file_path); ?></code></p>
+                <p>Maaf, file PDF untuk buku ini belum diupload atau tidak dapat diakses.</p>
                 <a href="homepage.php" class="btn" style="margin-top: 15px;">Kembali ke Beranda</a>
             </div>
         <?php endif; ?>
@@ -427,13 +356,6 @@ if (!empty($row['file_buku'])) {
     <script>
         let isFullscreen = false;
         let isMobileDevice = <?= isMobile() ? 'true' : 'false'; ?>;
-        const absoluteURL = '<?= htmlspecialchars($absolute_url); ?>';
-        const fileName = '<?= htmlspecialchars($row['file_buku'] ?? ''); ?>';
-
-        function toggleDebug() {
-            const debugInfo = document.getElementById('debugInfo');
-            debugInfo.classList.toggle('show');
-        }
 
         function toggleFullscreen() {
             const container = document.getElementById('pdfContainer');
@@ -453,70 +375,16 @@ if (!empty($row['file_buku'])) {
         }
 
         function downloadPDF() {
-            if (!fileName) {
+            <?php if (!empty($row['file_buku'])): ?>
+                const link = document.createElement('a');
+                link.href = 'file/<?= htmlspecialchars($row['file_buku']); ?>';
+                link.download = '<?= htmlspecialchars($row['judul']); ?>.pdf';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            <?php else: ?>
                 alert('File tidak tersedia untuk didownload');
-                return;
-            }
-            
-            const link = document.createElement('a');
-            link.href = absoluteURL;
-            link.download = '<?= htmlspecialchars($row['judul']); ?>.pdf';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function testURL() {
-            fetch(absoluteURL, { method: 'HEAD' })
-                .then(response => {
-                    if (response.ok) {
-                        alert('✅ URL dapat diakses!\nStatus: ' + response.status + '\nSize: ' + (response.headers.get('content-length') || 'Unknown'));
-                    } else {
-                        alert('❌ URL tidak dapat diakses!\nStatus: ' + response.status + ' - ' + response.statusText);
-                    }
-                })
-                .catch(error => {
-                    alert('❌ Error mengakses URL:\n' + error.message);
-                });
-        }
-
-        function copyURL() {
-            navigator.clipboard.writeText(absoluteURL).then(() => {
-                alert('URL berhasil di-copy ke clipboard!');
-            }).catch(() => {
-                // Fallback untuk browser yang tidak support clipboard API
-                const textArea = document.createElement('textarea');
-                textArea.value = absoluteURL;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-                alert('URL berhasil di-copy ke clipboard!');
-            });
-        }
-
-        function openInBrowser() {
-            // Untuk mobile, coba buka dengan intent atau scheme
-            if (isMobileDevice) {
-                // Coba beberapa cara untuk membuka di browser default
-                const schemes = [
-                    'googlechrome://' + absoluteURL,
-                    'firefox://' + absoluteURL,
-                    absoluteURL
-                ];
-                
-                let tried = 0;
-                function tryNext() {
-                    if (tried < schemes.length) {
-                        window.open(schemes[tried], '_blank');
-                        tried++;
-                        setTimeout(tryNext, 1000);
-                    }
-                }
-                tryNext();
-            } else {
-                window.open(absoluteURL, '_blank');
-            }
+            <?php endif; ?>
         }
 
         function showMobileViewer() {
@@ -524,49 +392,61 @@ if (!empty($row['file_buku'])) {
             const viewer = document.getElementById('pdfViewer');
             const btn = document.getElementById('showViewerBtn');
             
+            // Tampilkan container
             container.style.display = 'block';
-            viewer.src = absoluteURL;
             
+            // Set src iframe dengan parameter minimal untuk mobile
+            viewer.src = 'file/<?= htmlspecialchars($row['file_buku']); ?>';
+            
+            // Update button
             btn.innerHTML = '🔄 Refresh Viewer';
             btn.onclick = function() {
-                viewer.src = absoluteURL + '?t=' + new Date().getTime();
+                viewer.src = viewer.src + '?t=' + new Date().getTime();
             };
+            
+            // Auto fallback after 15 seconds
+            setTimeout(function() {
+                if (document.getElementById('loadingIndicator').style.display !== 'none') {
+                    showMobileError();
+                }
+            }, 15000);
         }
 
         function hideLoading() {
-            const loading = document.getElementById('loadingIndicator');
-            if (loading) loading.style.display = 'none';
+            document.getElementById('loadingIndicator').style.display = 'none';
         }
 
         function showError() {
             const loading = document.getElementById('loadingIndicator');
-            if (loading) {
-                loading.innerHTML = `
-                    <div style="color: #dc3545;">
-                        <h3>❌ Gagal memuat PDF</h3>
-                        <p>File PDF tidak dapat ditampilkan di browser ini.</p>
-                        <button onclick="downloadPDF()" class="btn" style="margin: 10px;">📥 Download</button>
-                        <button onclick="testURL()" class="btn btn-warning" style="margin: 10px;">🔗 Test URL</button>
-                    </div>
-                `;
-            }
+            loading.innerHTML = `
+                <div style="color: #dc3545;">
+                    <h3>❌ Gagal memuat PDF</h3>
+                    <p>File PDF tidak dapat ditampilkan. Silakan coba download file atau buka di tab baru.</p>
+                    <button onclick="downloadPDF()" class="btn" style="margin: 10px;">📥 Download</button>
+                    <a href="file/<?= htmlspecialchars($row['file_buku']); ?>" target="_blank" class="btn btn-success" style="margin: 10px;">🔗 Buka di Tab Baru</a>
+                </div>
+            `;
         }
 
         function showMobileError() {
-            const container = document.getElementById('pdfContainer');
-            if (container) {
-                container.innerHTML = `
-                    <div style="padding: 40px; text-align: center;">
-                        <h3 style="color: #dc3545;">❌ PDF Tidak Dapat Ditampilkan</h3>
-                        <p>Browser mobile Anda tidak mendukung tampilan PDF.</p>
-                        <button onclick="downloadPDF()" class="btn" style="margin: 10px;">📥 Download PDF</button>
-                        <a href="${absoluteURL}" target="_blank" class="btn btn-success" style="margin: 10px;">🔗 Coba Buka Lagi</a>
-                    </div>
-                `;
-            }
+            document.getElementById('pdfContainer').style.display = 'none';
+            document.getElementById('fallbackViewer').style.display = 'block';
         }
 
-        // Auto-hide loading
+        // Keyboard shortcuts (hanya untuk desktop)
+        if (!isMobileDevice) {
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'F11' || (e.key === 'f' && e.ctrlKey)) {
+                    e.preventDefault();
+                    toggleFullscreen();
+                }
+                if (e.key === 'Escape' && isFullscreen) {
+                    toggleFullscreen();
+                }
+            });
+        }
+
+        // Auto-hide loading after 10 seconds
         setTimeout(function() {
             const loading = document.getElementById('loadingIndicator');
             if (loading && loading.style.display !== 'none') {
@@ -577,11 +457,6 @@ if (!empty($row['file_buku'])) {
                 }
             }
         }, 10000);
-
-        // Test URL on page load for mobile
-        if (isMobileDevice && fileName) {
-            setTimeout(testURL, 2000);
-        }
     </script>
 </body>
 </html>
