@@ -15,14 +15,17 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     if ($result->num_rows == 1) {
         session_start();
         $user = $result->fetch_assoc();
-        $_SESSION['user_id'] = $user['id'];
+        
+        // Gunakan nama yang konsisten untuk session
+        $_SESSION['id_user'] = $user['id_user']; // Ubah dari user_id ke id_user
         $_SESSION['nama'] = $user['nama'];
         $_SESSION['role'] = $user['role'];
+        $_SESSION['email'] = $user['email']; // Tambahkan email ke session
 
         if ($user['role'] === 'admin') {
             header("Location: dashboard_admin.php");
         } else {
-            header("Location: ngambil.php");
+            header("Location: homepage.php");
         }
         exit();
     } else {
@@ -121,12 +124,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       top: 50%;
       transform: translateY(-50%);
       cursor: pointer;
-      width: 24px;
-      height: 24px;
-      background: none;      /* Hapus background biru */
-      border-radius: 0;      /* Hapus border-radius */
-      padding: 0;
-      box-shadow: none;
+      width: 20px;
+      height: 20px;
+      background: #4285f4;
+      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -344,8 +345,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         right: 16px;
         width: 32px;
         height: 32px;
-        background: none;    /* Hapus background biru */
-        border-radius: 0;    /* Hapus border-radius */
+        background: #007bff;
+        border-radius: 0;
         padding: 0;
         box-shadow: none;
       }
@@ -478,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <form method="POST" action="">
           <div class="form-group">
             <label for="email">Email</label>
-            <input type="email" name="email" id="email" required placeholder="Usermaulogin90@gmail.com">
+            <input type="email" name="email" id= "email" required placeholder="Masukkan email anda">
           </div>
 
           <div class="form-group">
