@@ -82,625 +82,971 @@ function formatTimeAgo($datetime) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Perpustakaan Digital - SMKN 8 Semarang</title>
     <style>
-         * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', Arial, sans-serif;
-            background-color: #ffffff;
-            line-height: 1.6;
-        }
-
-        /* Header Styles */
-        .header {
-            background-color: #eeeeee;
-            padding: 20px 50px;
-            border-radius: 40px;
-            margin: 40px 50px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-
-        .logo {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
-        }
-
-        .nav-menu {
-            display: flex;
-            gap: 30px;
-            align-items: center;
-        }
-
-        .nav-item {
-            font-weight: 600;
-            color: #121010b2;
-            font-size: 18px;
-            cursor: pointer;
-            transition: color 0.3s;
-            position: relative;
-            text-decoration: none;
-            
-        }
-
-        .nav-item:hover {
-            color: #000;
-        }
-
-        /* Categories Dropdown */
-        .categories-dropdown {
-            position: relative;
-            display: inline-block;
-        }
-
-        .categories-dropdown .nav-item {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .dropdown-arrow {
-            font-size: 12px;
-            transition: transform 0.3s;
-        }
-
-        .categories-dropdown:hover .dropdown-arrow {
-            transform: rotate(180deg);
-        }
-
-        .dropdown-menu {
-            position: absolute;
-            top: 100%;
-            left: 0;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-            min-width: 200px;
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.3s ease;
-            z-index: 1000;
-            margin-top: 10px;
-        }
-
-        .categories-dropdown:hover .dropdown-menu {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-
-        .dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 16px;
-            color: #333;
-            text-decoration: none;
-            font-size: 16px;
-            font-weight: 500;
-            border-radius: 8px;
-            margin: 4px;
-            transition: all 0.3s;
-        }
-
-        .dropdown-item:hover {
-            background: #f8f9fa;
-            color: #007bff;
-        }
-
-        .dropdown-item:first-child {
-            margin-top: 8px;
-        }
-
-        .dropdown-item:last-child {
-            margin-bottom: 8px;
-        }
-
-        .dropdown-icon {
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-        }
-
-        /* Icon styles */
-        .icon-popular::before { content: "🔥"; }
-        .icon-education::before { content: "🎓"; }
-        .icon-kids::before { content: "👶"; }
-        .icon-fiction::before { content: "📚"; }
-
-        .search-container {
-            display: flex;
-            align-items: center;
-            background: #fff;
-            padding: 8px 15px;
-            border-radius: 25px;
-            width: 300px;
-        }
-
-        .search-input {
-            border: none;
-            outline: none;
-            flex: 1;
-            padding: 5px;
-            font-size: 14px;
-        }
-
-        .search-icon {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-
-        .auth-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .btn {
-            padding: 8px 16px;
-            border-radius: 5px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-            transition: all 0.3s;
-        }
-
-        .btn-login {
-            background-color: #ffffffba;
-            color: #000;
-        }
-
-        .btn-signup {
-            background-color: #151510;
-            color: #fff;
-        }
-
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-
-        /* Hero Section */
-        .hero-section {
-            margin: 0 50px 30px 50px;
-            border-radius: 30px;
-            overflow: hidden;
-            position: relative;
-            height: 400px;
-        }
-
-        .hero-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            opacity: 0.9;
-        }
-
-        .hero-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .hero-title {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 15px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
-        }
-
-        .hero-subtitle {
-            font-size: 20px;
-            font-weight: 400;
-            opacity: 0.95;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
-        }
-
-        /* Main Content */
-        .main-content {
-            background-color: #7cb3e661;
-            border-radius: 30px;
-            margin: 0 50px;
-            padding: 40px;
-            min-height: 800px;
-        }
-
-        /* Search Results Section */
-        .search-results-section {
-            margin-bottom: 50px;
-            border-radius: 20px;
-            padding: 30px;
-            background: #fff;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-
-        .search-results-header {
-            margin-bottom: 25px;
-        }
-
-        .search-results-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-        }
-
-        .search-info {
-            font-size: 14px;
-            color: #666;
-            font-style: italic;
-        }
-
-        /* Category Sections */
-        .category-section {
-            margin-top: 50px;
-            margin-bottom: 50px;
-            border-radius: 20px;
-            padding: 30px;
-            background: #fff;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-        }
-
-        .category-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 25px;
-        }
-
-        .category-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            position: relative;
-        }
-
-        .view-all-btn {
-            background: #007bff;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            text-decoration: none;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .view-all-btn:hover {
-            background: #0056b3;
-            transform: translateY(-2px);
-        }
-
-        .books-grid {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-        }
-
-        .buku-link {
-            text-decoration: none;
-            color: inherit;
-            display: block;
-            position: relative;
-        }
-
-        .buku-card {
-            flex: 0 0 auto;
-            width: 180px;
-            background: #fff;
-            padding: 15px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: transform 0.3s, box-shadow 0.3s;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .buku-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        }
-
-        .buku-card img {
-            width: 100%;
-            height: 220px;
-            object-fit: cover;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
-
-        .judul {
-            font-size: 12px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            color: #333;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            line-height: 1.3;
-        }
-
-        .penulis {
-            font-size: 10px;
-            color: #666;
-            font-style: italic;
-        }
-
-        .book-new-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: linear-gradient(45deg, #ff6b6b, #ee5a52);
-            color: white;
-            font-size: 8px;
-            font-weight: bold;
-            padding: 2px 5px;
-            border-radius: 5px;
-            z-index: 10;
-        }
-
-        .book-updated-badge {
-            position: absolute;
-            top: 5px;
-            right: 5px;
-            background: linear-gradient(45deg, #4ecdc4, #44a08d);
-            color: white;
-            font-size: 8px;
-            font-weight: bold;
-            padding: 2px 5px;
-            border-radius: 5px;
-            z-index: 10;
-        }
-
-        .update-info {
-            font-size: 10px;
-            color: #666;
-            margin-top: 2px;
-            font-style: italic;
-        }
-
-        .no-books {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-            font-style: italic;
-            grid-column: 1 / -1;
-        }
-
-        .clear-search {
-            background: #dc3545;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
-            text-decoration: none;
-            font-size: 12px;
-            font-weight: 500;
-            margin-left: 10px;
-            transition: all 0.3s;
-        }
-
-        .clear-search:hover {
-            background: #c82333;
-            transform: translateY(-1px);
-        }
-
-        /* Footer */
-        .footer {
-            background-color: #c9e4ff;
-            padding: 40px 50px;
-            margin-top: 50px;
-        }
-
-        .footer-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 50px;
-        }
-
-        .footer-content {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 40px;
-            margin-bottom: 20px;
-        }
-
-        .footer-logo {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-        }
-
-        .footer-logo-img {
-            width: 100px;
-            height: 100px;
-            object-fit: contain;
-            margin-bottom: 15px;
-            border-radius: 12px;
-            padding: 8px;
-        }
-
-        .company-info h3 {
-            font-size: 18px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .company-info p {
-            font-size: 14px;
-            line-height: 1.6;
-            margin-bottom: 5px;
-        }
-
-        .footer-hours {
-            text-align: left;
-        }
-
-        .footer-hours h4 {
-            font-size: 16px;
-            margin-bottom: 15px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .hours-info {
-            margin-bottom: 20px;
-        }
-
-        .hours-info p {
-            font-size: 14px;
-            margin-bottom: 8px;
-            line-height: 1.4;
-        }
-
-        .contact-info h4 {
-            font-size: 16px;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .contact-info p {
-            font-size: 14px;
-            margin-bottom: 5px;
-        }
-
-        .contact-info a {
-            color: black;
-            text-decoration: none;
-        }
-
-        .contact-info a:hover {
-            text-decoration: underline;
-        }
-
-        .footer-categories {
-            text-align: left;
-        }
-
-        .footer-categories h4 {
-            font-size: 16px;
-            margin-bottom: 15px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .categories-list {
-            list-style: none;
-        }
-
-        .categories-list li {
-            margin-bottom: 10px;
-        }
-
-        .categories-list a,
-        .categories-list span {
-            color: black;
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.3s ease;
-            cursor: pointer;
-        }
-
-        .categories-list a:hover {
-            color: #b8d4f0;
-            text-decoration: underline;
-        }
-
-        .footer-bottom {
-            text-align: center;
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid rgba(255,255,255,0.2);
-            color: rgba(0,0,0,0.8);
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                gap: 20px;
-                margin: 20px;
-                padding: 20px;
-            }
-
-            .nav-menu {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .search-container {
-                width: 100%;
-                max-width: 300px;
-            }
-
-            .hero-section {
-                margin: 0 20px 20px 20px;
-                height: 250px;
-            }
-
-            .hero-title {
-                font-size: 32px;
-            }
-
-            .hero-subtitle {
-                font-size: 16px;
-            }
-
-            .main-content {
-                margin: 0 20px;
-                padding: 20px;
-            }
-
-            .books-grid {
-                grid-template-columns: repeat(3, 1fr);
-                gap: 10px;
-            }
-
-            .footer-container {
-                padding: 0 20px;
-            }
-
-            .footer-content {
-                grid-template-columns: 1fr;
-                gap: 30px;
-                text-align: center;
-            }
-
-            .footer-logo {
-                align-items: center;
-            }
-
-            .footer-hours,
-            .footer-categories {
-                text-align: center;
-            }
-
-            .dropdown-menu {
-                position: fixed;
-                top: auto;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 90%;
-                max-width: 300px;
-            }
-        }
+         /* Base styles remain the same */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', Arial, sans-serif;
+    background-color: #ffffff;
+    line-height: 1.6;
+}
+
+/* Header Styles */
+.header {
+    background-color: #eeeeee;
+    padding: 20px 50px;
+    border-radius: 40px;
+    margin: 40px 50px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.logo {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+}
+
+.nav-menu {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+}
+
+.nav-item {
+    font-weight: 600;
+    color: #121010b2;
+    font-size: 18px;
+    cursor: pointer;
+    transition: color 0.3s;
+    position: relative;
+    text-decoration: none;
+}
+
+.nav-item:hover {
+    color: #000;
+}
+
+/* Categories Dropdown */
+.categories-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.categories-dropdown .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.dropdown-arrow {
+    font-size: 12px;
+    transition: transform 0.3s;
+}
+
+.categories-dropdown:hover .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+    margin-top: 10px;
+}
+
+.categories-dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    color: #333;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 500;
+    border-radius: 8px;
+    margin: 4px;
+    transition: all 0.3s;
+}
+
+.dropdown-item:hover {
+    background: #f8f9fa;
+    color: #007bff;
+}
+
+.dropdown-item:first-child {
+    margin-top: 8px;
+}
+
+.dropdown-item:last-child {
+    margin-bottom: 8px;
+}
+
+.dropdown-icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+/* Icon styles */
+.icon-popular::before { content: "🔥"; }
+.icon-education::before { content: "🎓"; }
+.icon-kids::before { content: "👶"; }
+.icon-fiction::before { content: "📚"; }
+
+.search-container {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    padding: 8px 15px;
+    border-radius: 25px;
+    width: 300px;
+}
+
+.search-input {
+    border: none;
+    outline: none;
+    flex: 1;
+    padding: 5px;
+    font-size: 14px;
+}
+
+.search-icon {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.auth-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.3s;
+}
+
+.btn-login {
+    background-color: #ffffffba;
+    color: #000;
+}
+
+.btn-signup {
+    background-color: #151510;
+    color: #fff;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+/* Hero Section */
+.hero-section {
+    margin: 0 50px 30px 50px;
+    border-radius: 30px;
+    overflow: hidden;
+    position: relative;
+    height: 400px;
+}
+
+.hero-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.9;
+}
+
+.hero-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.hero-title {
+    font-size: 48px;
+    font-weight: 700;
+    margin-bottom: 15px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.hero-subtitle {
+    font-size: 20px;
+    font-weight: 400;
+    opacity: 0.95;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+}
+
+/* Main Content */
+.main-content {
+    background-color: #7cb3e661;
+    border-radius: 30px;
+    margin: 0 50px;
+    padding: 40px;
+    min-height: 800px;
+}
+
+/* Search Results Section */
+.search-results-section {
+    margin-bottom: 50px;
+    border-radius: 20px;
+    padding: 30px;
+    background: #fff;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.search-results-header {
+    margin-bottom: 25px;
+}
+
+.search-results-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.search-info {
+    font-size: 14px;
+    color: #666;
+    font-style: italic;
+}
+
+/* Category Sections */
+.category-section {
+    margin-top: 50px;
+    margin-bottom: 50px;
+    border-radius: 20px;
+    padding: 30px;
+    background: #fff;
+    box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+}
+
+.category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 25px;
+}
+
+.category-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    position: relative;
+}
+
+.view-all-btn {
+    background: #007bff;
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.view-all-btn:hover {
+    background: #0056b3;
+    transform: translateY(-2px);
+}
+
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+}
+
+.buku-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+    position: relative;
+}
+
+.buku-card {
+    flex: 0 0 auto;
+    width: 100%;
+    background: #fff;
+    padding: 15px;
+    border-radius: 15px;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s, box-shadow 0.3s;
+    cursor: pointer;
+    position: relative;
+}
+
+.buku-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+.buku-card img {
+    width: 100%;
+    height: 220px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.judul {
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.penulis {
+    font-size: 10px;
+    color: #666;
+    font-style: italic;
+}
+
+.book-new-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: linear-gradient(45deg, #ff6b6b, #ee5a52);
+    color: white;
+    font-size: 8px;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 5px;
+    z-index: 10;
+}
+
+.book-updated-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: linear-gradient(45deg, #4ecdc4, #44a08d);
+    color: white;
+    font-size: 8px;
+    font-weight: bold;
+    padding: 2px 5px;
+    border-radius: 5px;
+    z-index: 10;
+}
+
+.update-info {
+    font-size: 10px;
+    color: #666;
+    margin-top: 2px;
+    font-style: italic;
+}
+
+.no-books {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-style: italic;
+    grid-column: 1 / -1;
+}
+
+.clear-search {
+    background: #dc3545;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    margin-left: 10px;
+    transition: all 0.3s;
+}
+
+.clear-search:hover {
+    background: #c82333;
+    transform: translateY(-1px);
+}
+
+/* Footer */
+.footer {
+    background-color: #c9e4ff;
+    padding: 40px 50px;
+    margin-top: 50px;
+}
+
+.footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 50px;
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 40px;
+    margin-bottom: 20px;
+}
+
+.footer-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.footer-logo-img {
+    width: 100px;
+    height: 100px;
+    object-fit: contain;
+    margin-bottom: 15px;
+    border-radius: 12px;
+    padding: 8px;
+}
+
+.company-info h3 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.company-info p {
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 5px;
+}
+
+.footer-hours {
+    text-align: left;
+}
+
+.footer-hours h4 {
+    font-size: 16px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.hours-info {
+    margin-bottom: 20px;
+}
+
+.hours-info p {
+    font-size: 14px;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.contact-info h4 {
+    font-size: 16px;
+    margin-bottom: 10px;
+    font-weight: bold;
+}
+
+.contact-info p {
+    font-size: 14px;
+    margin-bottom: 5px;
+}
+
+.contact-info a {
+    color: black;
+    text-decoration: none;
+}
+
+.contact-info a:hover {
+    text-decoration: underline;
+}
+
+.footer-categories {
+    text-align: left;
+}
+
+.footer-categories h4 {
+    font-size: 16px;
+    margin-bottom: 15px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.categories-list {
+    list-style: none;
+}
+
+.categories-list li {
+    margin-bottom: 10px;
+}
+
+.categories-list a,
+.categories-list span {
+    color: black;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.3s ease;
+    cursor: pointer;
+}
+
+.categories-list a:hover {
+    color: #b8d4f0;
+    text-decoration: underline;
+}
+
+.footer-bottom {
+    text-align: center;
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    color: rgba(0,0,0,0.8);
+}
+
+/* Enhanced Responsive Design */
+
+/* Large Tablets (1024px and below) */
+@media (max-width: 1024px) {
+    .header {
+        padding: 15px 30px;
+        margin: 30px 30px;
+    }
+    
+    .nav-menu {
+        gap: 20px;
+    }
+    
+    .nav-item {
+        font-size: 16px;
+    }
+    
+    .search-container {
+        width: 250px;
+    }
+    
+    .hero-section {
+        margin: 0 30px 20px 30px;
+        height: 350px;
+    }
+    
+    .hero-title {
+        font-size: 42px;
+    }
+    
+    .hero-subtitle {
+        font-size: 18px;
+    }
+    
+    .main-content {
+        margin: 0 30px;
+        padding: 30px;
+    }
+    
+    .books-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    
+    .footer {
+        padding: 30px 30px;
+    }
+    
+    .footer-container {
+        padding: 0 30px;
+    }
+}
+
+/* Medium Tablets (768px and below) */
+@media (max-width: 768px) {
+    .header {
+        flex-direction: column;
+        gap: 15px;
+        margin: 20px 20px;
+        padding: 20px;
+        border-radius: 25px;
+    }
+    
+    .logo {
+        width: 60px;
+        height: 60px;
+    }
+
+    .nav-menu {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 15px;
+    }
+    
+    .nav-item {
+        font-size: 14px;
+    }
+
+    .search-container {
+        width: 100%;
+        max-width: 280px;
+        order: 1;
+    }
+    
+    .auth-buttons {
+        order: 2;
+        gap: 8px;
+    }
+    
+    .btn {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .hero-section {
+        margin: 0 20px 20px 20px;
+        height: 250px;
+        border-radius: 20px;
+    }
+
+    .hero-title {
+        font-size: 28px;
+    }
+
+    .hero-subtitle {
+        font-size: 14px;
+    }
+
+    .main-content {
+        margin: 0 20px;
+        padding: 20px;
+        border-radius: 20px;
+    }
+    
+    .category-section {
+        padding: 20px;
+        margin-top: 30px;
+        margin-bottom: 30px;
+    }
+    
+    .category-title {
+        font-size: 20px;
+    }
+    
+    .search-results-section {
+        padding: 20px;
+        margin-bottom: 30px;
+    }
+    
+    .search-results-title {
+        font-size: 20px;
+    }
+
+    .books-grid {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    
+    .buku-card img {
+        height: 180px;
+    }
+    
+    .judul {
+        font-size: 11px;
+    }
+    
+    .penulis {
+        font-size: 9px;
+    }
+
+    .footer {
+        padding: 30px 20px;
+    }
+    
+    .footer-container {
+        padding: 0 20px;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+        gap: 25px;
+        text-align: center;
+    }
+
+    .footer-logo {
+        align-items: center;
+    }
+    
+    .footer-logo-img {
+        width: 80px;
+        height: 80px;
+    }
+
+    .footer-hours,
+    .footer-categories {
+        text-align: center;
+    }
+
+    .dropdown-menu {
+        position: fixed;
+        top: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 300px;
+        margin-top: 5px;
+    }
+}
+
+/* Small Mobile (480px and below) */
+@media (max-width: 480px) {
+    .header {
+        margin: 15px 15px;
+        padding: 15px;
+        border-radius: 20px;
+    }
+    
+    .logo {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .nav-menu {
+        gap: 10px;
+    }
+    
+    .nav-item {
+        font-size: 12px;
+        padding: 5px 8px;
+    }
+    
+    .search-container {
+        max-width: 200px;
+        padding: 6px 10px;
+    }
+    
+    .search-input {
+        font-size: 12px;
+    }
+    
+    .search-icon {
+        width: 16px;
+        height: 16px;
+    }
+    
+    .btn {
+        padding: 5px 10px;
+        font-size: 11px;
+    }
+
+    .hero-section {
+        margin: 0 15px 15px 15px;
+        height: 200px;
+        border-radius: 15px;
+    }
+
+    .hero-title {
+        font-size: 24px;
+    }
+
+    .hero-subtitle {
+        font-size: 12px;
+    }
+
+    .main-content {
+        margin: 0 15px;
+        padding: 15px;
+        border-radius: 15px;
+    }
+    
+    .category-section {
+        padding: 15px;
+        margin-top: 20px;
+        margin-bottom: 20px;
+        border-radius: 15px;
+    }
+    
+    .category-title {
+        font-size: 18px;
+    }
+    
+    .search-results-section {
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 15px;
+    }
+    
+    .search-results-title {
+        font-size: 18px;
+    }
+
+    .books-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .buku-card {
+        padding: 10px;
+        border-radius: 10px;
+    }
+    
+    .buku-card img {
+        height: 150px;
+        border-radius: 8px;
+    }
+    
+    .judul {
+        font-size: 10px;
+        margin-bottom: 3px;
+    }
+    
+    .penulis {
+        font-size: 8px;
+    }
+    
+    .update-info {
+        font-size: 8px;
+    }
+    
+    .book-new-badge,
+    .book-updated-badge {
+        font-size: 7px;
+        padding: 1px 3px;
+        border-radius: 3px;
+    }
+
+    .footer {
+        padding: 20px 15px;
+    }
+    
+    .footer-container {
+        padding: 0 15px;
+    }
+    
+    .footer-content {
+        gap: 20px;
+    }
+    
+    .footer-logo-img {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .company-info p,
+    .hours-info p,
+    .contact-info p {
+        font-size: 12px;
+    }
+    
+    .footer-hours h4,
+    .footer-categories h4,
+    .contact-info h4 {
+        font-size: 14px;
+    }
+    
+    .categories-list a,
+    .categories-list span {
+        font-size: 12px;
+    }
+    
+    .dropdown-menu {
+        width: 95%;
+        max-width: 250px;
+    }
+    
+    .dropdown-item {
+        padding: 10px 12px;
+        font-size: 14px;
+    }
+}
+
+/* Extra Small Mobile (360px and below) */
+@media (max-width: 360px) {
+    .header {
+        margin: 10px 10px;
+        padding: 12px;
+    }
+    
+    .nav-menu {
+        gap: 8px;
+    }
+    
+    .nav-item {
+        font-size: 11px;
+        padding: 4px 6px;
+    }
+    
+    .search-container {
+        max-width: 180px;
+    }
+
+    .hero-section {
+        margin: 0 10px 10px 10px;
+        height: 180px;
+    }
+
+    .hero-title {
+        font-size: 20px;
+    }
+
+    .hero-subtitle {
+        font-size: 11px;
+    }
+
+    .main-content {
+        margin: 0 10px;
+        padding: 12px;
+    }
+    
+    .category-section,
+    .search-results-section {
+        padding: 12px;
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
+
+    .books-grid {
+        gap: 6px;
+    }
+    
+    .buku-card {
+        padding: 8px;
+    }
+    
+    .buku-card img {
+        height: 120px;
+    }
+
+    .footer {
+        padding: 15px 10px;
+    }
+    
+    .footer-container {
+        padding: 0 10px;
+    }
+}
     </style>
 </head>
 <body>
