@@ -2,8 +2,126 @@
 include 'koneksi.php';
 
 $error = '';
+$success = '';
 
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+// Handle forgot password request
+if (isset($_POST['forgot_password'])) {
+    $email = trim($_POST['forgot_email']);
+    
+    // Check if email exists
+    $stmt = $conn->prepare("SELECT id_user, nama FROM user WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows == 1) {
+        $user = $result->fetch_assoc();
+        
+        // Generate OTP
+        $otp = sprintf("%06d", mt_rand(100000, 999999));
+        $expires_at = date('Y-m-d H:i:s', strtotime('+30 minutes'));
+        
+        // Store OTP in database (you need to create this table)
+        $stmt = $conn->prepare("INSERT INTO password_reset (user_id, email, otp, expires_at, is_used) VALUES (?, ?, ?, ?, 0) ON DUPLICATE KEY UPDATE otp = ?, expires_at = ?, is_used = 0");
+        $stmt->bind_param("isssss", $user['id_user'], $email, $otp, $expires_at, $otp, $expires_at);
+        $stmt->execute();
+        
+        // Send email (you need to implement this)
+        $subject = "Kode OTP Reset Password - E-Snap";
+        $message = "Halo " . $user['nama'] . ",\n\n";
+        $message .= "Kode OTP untuk reset password Anda adalah: " . $otp . "\n\n";
+        $message .= "Kode ini akan berlaku selama 30 menit.\n\n";
+        $message .= "Jika Anda tidak meminta reset password, abaikan email ini.\n\n";
+        $message .= "Terima kasih,\nTim E-Snap";
+        
+        $headers = "From: noreply@e-snap.com\r\n";
+        $headers .= "Reply-To: noreply@e-snap.com\r\n";
+        $headers .= "X-Mailer: PHP/" . phpversion();
+        
+        if (mail($email, $subject, $message, $headers)) {
+            echo json_encode(['success' => true, 'message' => 'Kode OTP telah dikirim ke email Anda']);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Gagal mengirim email. Silakan coba lagi.']);
+        }
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Email tidak ditemukan dalam sistem']);
+    }
+    exit;
+}
+
+// Handle OTP verification
+if (isset($_POST['verify_otp'])) {
+    $email = trim($_POST['email']);
+    $otp = trim($_POST['otp']);
+    
+    $stmt = $conn->prepare("SELECT * FROM password_reset WHERE email = ? AND otp = ? AND is_used = 0 AND expires_at > NOW()");
+    $stmt->bind_param("ss", $email, $otp);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows == 1) {
+        $reset_data = $result->fetch_assoc();
+        
+        // Generate reset token
+        $reset_token = bin2hex(random_bytes(32));
+        $token_expires = date('Y-m-d H:i:s', strtotime('+30 minutes'));
+        
+        // Update with reset token
+        $stmt = $conn->prepare("UPDATE password_reset SET reset_token = ?, token_expires = ? WHERE id = ?");
+        $stmt->bind_param("ssi", $reset_token, $token_expires, $reset_data['id']);
+        $stmt->execute();
+        
+        echo json_encode(['success' => true, 'reset_token' => $reset_token]);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Kode OTP tidak valid atau sudah kedaluwarsa']);
+    }
+    exit;
+}
+
+// Handle password reset
+if (isset($_POST['reset_password'])) {
+    $token = trim($_POST['token']);
+    $new_password = $_POST['new_password'];
+    $confirm_password = $_POST['confirm_password'];
+    
+    if ($new_password !== $confirm_password) {
+        echo json_encode(['success' => false, 'message' => 'Password konfirmasi tidak cocok']);
+        exit;
+    }
+    
+    if (strlen($new_password) < 6) {
+        echo json_encode(['success' => false, 'message' => 'Password minimal 6 karakter']);
+        exit;
+    }
+    
+    // Verify reset token
+    $stmt = $conn->prepare("SELECT * FROM password_reset WHERE reset_token = ? AND is_used = 0 AND token_expires > NOW()");
+    $stmt->bind_param("s", $token);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($result->num_rows == 1) {
+        $reset_data = $result->fetch_assoc();
+        
+        // Update password
+        $stmt = $conn->prepare("UPDATE user SET password = ? WHERE id_user = ?");
+        $stmt->bind_param("si", $new_password, $reset_data['user_id']); // Note: You should hash the password
+        $stmt->execute();
+        
+        // Mark token as used
+        $stmt = $conn->prepare("UPDATE password_reset SET is_used = 1 WHERE id = ?");
+        $stmt->bind_param("i", $reset_data['id']);
+        $stmt->execute();
+        
+        echo json_encode(['success' => true, 'message' => 'Password berhasil direset']);
+    } else {
+        echo json_encode(['success' => false, 'message' => 'Token tidak valid atau sudah kedaluwarsa']);
+    }
+    exit;
+}
+
+// Handle login
+if ($_SERVER['REQUEST_METHOD'] == 'POST' && !isset($_POST['forgot_password']) && !isset($_POST['verify_otp']) && !isset($_POST['reset_password'])) {
     $email = trim($_POST['email']);
     $password = $_POST['password'];
 
@@ -16,11 +134,10 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         session_start();
         $user = $result->fetch_assoc();
         
-        // Gunakan nama yang konsisten untuk session
-        $_SESSION['id_user'] = $user['id_user']; // Ubah dari user_id ke id_user
+        $_SESSION['id_user'] = $user['id_user'];
         $_SESSION['nama'] = $user['nama'];
         $_SESSION['role'] = $user['role'];
-        $_SESSION['email'] = $user['email']; // Tambahkan email ke session
+        $_SESSION['email'] = $user['email'];
 
         if ($user['role'] === 'admin') {
             header("Location: dashboard_admin.php");
@@ -157,7 +274,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     .toggle-password img {
       width: 16px;
       height: 16px;
-    
     }
 
     .btn-submit {
@@ -217,6 +333,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
     .register-section a:active {
       transform: translateY(-1px);
+    }
+
+    .forgot-password-link {
+      display: block;
+      text-align: center;
+      color: #4285f4;
+      text-decoration: none;
+      font-size: 14px;
+      margin: 10px 0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .forgot-password-link:hover {
+      color: #3367d6;
+      text-decoration: underline;
     }
 
     .right-pane {
@@ -317,6 +449,158 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       border: 1px solid #f44336;
     }
 
+    .message.success {
+      color: #4caf50;
+      background: rgba(76, 175, 80, 0.1);
+      border: 1px solid #4caf50;
+    }
+
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal {
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      transform: translateY(-50px) scale(0.9);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0) scale(1);
+    }
+
+    .modal h3 {
+      margin: 0 0 20px 0;
+      color: #333;
+      text-align: center;
+      font-size: 20px;
+    }
+
+    .modal .form-group {
+      margin-bottom: 15px;
+      opacity: 1;
+      transform: none;
+    }
+
+    .modal .form-group label {
+      color: #555;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .modal input {
+      width: 100%;
+      max-width: none;
+      padding: 12px 15px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .modal-btn.primary {
+      background: linear-gradient(135deg, #4285f4, #3367d6);
+      color: white;
+    }
+
+    .modal-btn.primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(66, 133, 244, 0.4);
+    }
+
+    .modal-btn.secondary {
+      background: #f5f5f5;
+      color: #666;
+    }
+
+    .modal-btn.secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .modal-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .modal .message {
+      max-width: none;
+      margin: 15px 0;
+    }
+
+    .otp-input {
+      text-align: center;
+      font-size: 18px;
+      letter-spacing: 2px;
+      font-weight: bold;
+    }
+
+    .timer {
+      text-align: center;
+      color: #ff5722;
+      font-size: 14px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+
+    .resend-link {
+      display: block;
+      text-align: center;
+      color: #4285f4;
+      text-decoration: none;
+      font-size: 14px;
+      margin: 10px 0;
+      cursor: pointer;
+    }
+
+    .resend-link:hover {
+      text-decoration: underline;
+    }
+
+    .resend-link.disabled {
+      color: #ccc;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
     /* Animation States */
     .form-container.fade-out {
       opacity: 0;
@@ -342,6 +626,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     .form-group.stagger-2 { transition-delay: 0.2s; }
     .form-group.stagger-3 { transition-delay: 0.3s; }
     .form-group.stagger-4 { transition-delay: 0.4s; }
+    .form-group.stagger-5 { transition-delay: 0.5s; }
 
     .form-group.animate-in {
       opacity: 1;
@@ -422,153 +707,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         display: none;
       }
 
-      .form-group {
-        width: 100%;
-        max-width: 350px;
-        margin-bottom: 15px;
-      }
-
-      .form-group label {
-        text-align: left;
-        font-size: 14px;
-        color: #1565c0;
-        font-weight: 600;
-        margin-bottom: 5px;
-      }
-
-      input[type="text"],
-      input[type="email"],
-      input[type="password"] {
-        width: 100%;
-        max-width: 100%;
-        padding: 14px 16px;
-        font-size: 16px;
-        border: 1px solid #ddd;
-        border-radius: 30px;
-        background: rgba(255, 255, 255, 0.9);
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      }
-
-      .input-wrapper {
-        width: 100%;
-        max-width: 100%;
-      }
-
-      .input-wrapper input {
-        padding-right: 50px;
-      }
-
-      .toggle-password {
-        right: 16px;
-        width: 32px;
-        height: 32px;
-      }
-
-      .toggle-password img {
-        width: 20px;
-        height: 20px;
-      }
-
-      .btn-submit {
-        width: 100%;
-        max-width: 100%;
-        margin: 20px 0;
-        padding: 16px;
-        font-size: 16px;
-        font-weight: bold;
-        border-radius: 30px;
-      }
-
-      .register-section {
-        text-align: center;
-        margin: 20px 0;
-        width: 100%;
-        max-width: 100%;
-      }
-
-      .register-section p {
-        color: #666;
-        font-size: 14px;
-        margin: 10px 0;
-      }
-
-      .register-section a {
-        padding: 12px 30px;
-        border-radius: 25px;
-        font-size: 14px;
-        max-width: 100%;
-      }
-
-      .message {
-        max-width: 100%;
-        width: 100%;
-        text-align: center;
-        border-radius: 15px;
-        margin-bottom: 20px;
-      }
-    }
-
-    @media screen and (max-width: 480px) {
-      .left-pane {
-        padding: 20px 15px;
-      }
-
-      .right-pane {
-        padding: 20px 15px;
-      }
-
-      .form-group {
-        margin-bottom: 18px;
-      }
-
-      .quote h2 {
-        font-size: 18px;
-      }
-
-      .quote h3 {
-        font-size: 20px;
-      }
-    }
-
-    /* Landscape orientation on mobile */
-    @media screen and (max-width: 768px) and (orientation: landscape) {
-      .auth-container {
-        flex-direction: row;
-      }
-
-      .right-pane {
-        order: 2;
+      .modal {
+        width: 95%;
         padding: 20px;
-        max-width: 50%;
       }
 
-      .left-pane {
-        order: 1;
-        padding: 20px;
-        border-radius: 0;
-        max-width: 50%;
-      }
-
-      .logo {
-        width: 80px;
-        height: 80px;
-      }
-
-      .logo img {
-        width: 50px;
-        height: 50px;
-      }
-
-      .quote h2 {
-        font-size: 16px;
-      }
-
-      .quote h3 {
+      .modal h3 {
         font-size: 18px;
-      }
-
-      .quote p {
-        font-size: 12px;
       }
     }
 
@@ -583,6 +728,24 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       cursor: not-allowed;
       animation: pulse 1.5s infinite;
     }
+
+    @keyframes fadeInSuccess {
+      0% {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.8);
+      }
+      50% {
+        transform: translateY(0) scale(1.05);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .success-animation {
+      animation: fadeInSuccess 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
   </style>
 </head>
 <body>
@@ -592,6 +755,9 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <div id="message-container">
           <?php if ($error): ?>
             <div class="message error"><?php echo $error; ?></div>
+          <?php endif; ?>
+          <?php if ($success): ?>
+            <div class="message success"><?php echo $success; ?></div>
           <?php endif; ?>
         </div>
 
@@ -612,10 +778,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
           </div>
 
           <div class="form-group stagger-3">
-            <button type="submit" class="btn-submit" id="submit-btn">Login Sekarang</button>
+            <a href="#" class="forgot-password-link" onclick="openForgotPasswordModal()">Lupa Password?</a>
           </div>
 
           <div class="form-group stagger-4">
+            <button type="submit" class="btn-submit" id="submit-btn">Login Sekarang</button>
+          </div>
+
+          <div class="form-group stagger-5">
             <div class="register-section">
               <p>Belum punya akun?</p>
               <a href="reg.php">Daftar di sini</a>
@@ -638,9 +808,97 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     </div>
   </div>
 
+  <!-- Forgot Password Modal -->
+  <div id="forgotPasswordModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Lupa Password</h3>
+      <div id="forgot-message-container"></div>
+      <form id="forgotPasswordForm">
+        <div class="form-group">
+          <label for="forgot_email">Email</label>
+          <input type="email" id="forgot_email" name="forgot_email" required placeholder="Masukkan email Anda">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="modal-btn secondary" onclick="closeForgotPasswordModal()">Batal</button>
+          <button type="submit" class="modal-btn primary" id="send-otp-btn">Kirim OTP</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- OTP Verification Modal -->
+  <div id="otpModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Verifikasi OTP</h3>
+      <p style="text-align: center; color: #666; font-size: 14px; margin-bottom: 20px;">
+        Kode OTP telah dikirim ke email Anda
+      </p>
+      <div id="otp-message-container"></div>
+      <form id="otpForm">
+        <div class="form-group">
+          <label for="otp_code">Kode OTP</label>
+          <input type="text" id="otp_code" name="otp" required placeholder="Masukkan 6 digit kode OTP" maxlength="6" class="otp-input">
+        </div>
+        <div id="timer" class="timer"></div>
+        <a href="#" id="resend-otp" class="resend-link disabled">Kirim Ulang OTP</a>
+        <div class="modal-buttons">
+          <button type="button" class="modal-btn secondary" onclick="closeOtpModal()">Batal</button>
+          <button type="submit" class="modal-btn primary" id="verify-otp-btn">Verifikasi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reset Password Modal -->
+  <div id="resetPasswordModal" class="modal-overlay">
+    <div class="modal">
+      <h3>Reset Password</h3>
+      <div id="reset-message-container"></div>
+      <form id="resetPasswordForm">
+        <input type="hidden" id="reset_token" name="token">
+        <div class="form-group">
+          <label for="new_password">Password Baru</label>
+          <input type="password" id="new_password" name="new_password" required placeholder="Masukkan password baru" minlength="6">
+        </div>
+        <div class="form-group">
+          <label for="confirm_password">Konfirmasi Password</label>
+          <input type="password" id="confirm_password" name="confirm_password" required placeholder="Konfirmasi password baru" minlength="6">
+        </div>
+        <div class="modal-buttons">
+          <button type="button" class="modal-btn secondary" onclick="closeResetPasswordModal()">Batal</button>
+          <button type="submit" class="modal-btn primary" id="reset-password-btn">Reset Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Success Modal -->
+  <div id="successModal" class="modal-overlay">
+    <div class="modal">
+      <div style="text-align: center;">
+        <div style="width: 60px; height: 60px; background: #4caf50; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+        </div>
+        <h3 style="color: #4caf50; margin-bottom: 15px;">Password Berhasil Direset!</h3>
+        <p style="color: #666; font-size: 14px; margin-bottom: 25px;">
+          Password Anda telah berhasil direset. Silakan login dengan password baru Anda.
+        </p>
+        <button type="button" class="modal-btn primary" onclick="closeSuccessModal()" style="width: 100%;">
+          Login Sekarang
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    function showMessage(message, type) {
-      const messageContainer = document.getElementById('message-container');
+    let otpTimer;
+    let otpCountdown = 300; // 5 minutes
+    let currentEmail = '';
+
+    function showMessage(message, type, container = 'message-container') {
+      const messageContainer = document.getElementById(container);
       messageContainer.innerHTML = `<div class="message ${type}">${message}</div>`;
       setTimeout(() => {
         const messageEl = messageContainer.querySelector('.message');
@@ -678,12 +936,241 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Memproses...';
       
-      // Re-enable after 3 seconds if form doesn't redirect
       setTimeout(() => {
         submitBtn.disabled = false;
         submitBtn.textContent = 'Login Sekarang';
       }, 3000);
     }
+
+    // Modal Functions
+    function openForgotPasswordModal() {
+      document.getElementById('forgotPasswordModal').classList.add('active');
+      document.getElementById('forgot_email').focus();
+    }
+
+    function closeForgotPasswordModal() {
+      document.getElementById('forgotPasswordModal').classList.remove('active');
+      document.getElementById('forgotPasswordForm').reset();
+      document.getElementById('forgot-message-container').innerHTML = '';
+    }
+
+    function openOtpModal(email) {
+      currentEmail = email;
+      document.getElementById('otpModal').classList.add('active');
+      document.getElementById('otp_code').focus();
+      startOtpTimer();
+    }
+
+    function closeOtpModal() {
+      document.getElementById('otpModal').classList.remove('active');
+      document.getElementById('otpForm').reset();
+      document.getElementById('otp-message-container').innerHTML = '';
+      clearInterval(otpTimer);
+    }
+
+    function openResetPasswordModal(token) {
+      document.getElementById('resetPasswordModal').classList.add('active');
+      document.getElementById('reset_token').value = token;
+      document.getElementById('new_password').focus();
+    }
+
+    function closeResetPasswordModal() {
+      document.getElementById('resetPasswordModal').classList.remove('active');
+      document.getElementById('resetPasswordForm').reset();
+      document.getElementById('reset-message-container').innerHTML = '';
+    }
+
+    function openSuccessModal() {
+      document.getElementById('successModal').classList.add('active');
+      document.querySelector('#successModal .modal').classList.add('success-animation');
+    }
+
+    function closeSuccessModal() {
+      document.getElementById('successModal').classList.remove('active');
+      // Optionally refresh page or redirect to login
+      window.location.reload();
+    }
+
+    // OTP Timer
+    function startOtpTimer() {
+      otpCountdown = 300; // Reset to 5 minutes
+      const timerElement = document.getElementById('timer');
+      const resendLink = document.getElementById('resend-otp');
+      
+      resendLink.classList.add('disabled');
+      
+      otpTimer = setInterval(() => {
+        const minutes = Math.floor(otpCountdown / 60);
+        const seconds = otpCountdown % 60;
+        
+        timerElement.textContent = `Kode akan kedaluwarsa dalam ${minutes}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (otpCountdown <= 0) {
+          clearInterval(otpTimer);
+          timerElement.textContent = 'Kode OTP telah kedaluwarsa';
+          resendLink.classList.remove('disabled');
+          resendLink.textContent = 'Kirim Ulang OTP';
+        }
+        
+        otpCountdown--;
+      }, 1000);
+    }
+
+    // Form Submissions
+    document.getElementById('forgotPasswordForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('send-otp-btn');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Mengirim...';
+      
+      const formData = new FormData();
+      formData.append('forgot_password', '1');
+      formData.append('forgot_email', document.getElementById('forgot_email').value);
+      
+      try {
+        const response = await fetch(window.location.href, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showMessage(result.message, 'success', 'forgot-message-container');
+          setTimeout(() => {
+            closeForgotPasswordModal();
+            openOtpModal(document.getElementById('forgot_email').value);
+          }, 2000);
+        } else {
+          showMessage(result.message, 'error', 'forgot-message-container');
+        }
+      } catch (error) {
+        showMessage('Terjadi kesalahan. Silakan coba lagi.', 'error', 'forgot-message-container');
+      }
+      
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    });
+
+    document.getElementById('otpForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const submitBtn = document.getElementById('verify-otp-btn');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Memverifikasi...';
+      
+      const formData = new FormData();
+      formData.append('verify_otp', '1');
+      formData.append('email', currentEmail);
+      formData.append('otp', document.getElementById('otp_code').value);
+      
+      try {
+        const response = await fetch(window.location.href, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showMessage('OTP berhasil diverifikasi!', 'success', 'otp-message-container');
+          setTimeout(() => {
+            closeOtpModal();
+            openResetPasswordModal(result.reset_token);
+          }, 1500);
+        } else {
+          showMessage(result.message, 'error', 'otp-message-container');
+        }
+      } catch (error) {
+        showMessage('Terjadi kesalahan. Silakan coba lagi.', 'error', 'otp-message-container');
+      }
+      
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    });
+
+    document.getElementById('resetPasswordForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      const newPassword = document.getElementById('new_password').value;
+      const confirmPassword = document.getElementById('confirm_password').value;
+      
+      if (newPassword !== confirmPassword) {
+        showMessage('Password konfirmasi tidak cocok', 'error', 'reset-message-container');
+        return;
+      }
+      
+      if (newPassword.length < 6) {
+        showMessage('Password minimal 6 karakter', 'error', 'reset-message-container');
+        return;
+      }
+      
+      const submitBtn = document.getElementById('reset-password-btn');
+      const originalText = submitBtn.textContent;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Mereset...';
+      
+      const formData = new FormData();
+      formData.append('reset_password', '1');
+      formData.append('token', document.getElementById('reset_token').value);
+      formData.append('new_password', newPassword);
+      formData.append('confirm_password', confirmPassword);
+      
+      try {
+        const response = await fetch(window.location.href, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          closeResetPasswordModal();
+          openSuccessModal();
+        } else {
+          showMessage(result.message, 'error', 'reset-message-container');
+        }
+      } catch (error) {
+        showMessage('Terjadi kesalahan. Silakan coba lagi.', 'error', 'reset-message-container');
+      }
+      
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
+    });
+
+    // Resend OTP
+    document.getElementById('resend-otp').addEventListener('click', async function(e) {
+      e.preventDefault();
+      
+      if (this.classList.contains('disabled')) return;
+      
+      this.textContent = 'Mengirim...';
+      
+      const formData = new FormData();
+      formData.append('forgot_password', '1');
+      formData.append('forgot_email', currentEmail);
+      
+      try {
+        const response = await fetch(window.location.href, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          showMessage('OTP baru telah dikirim', 'success', 'otp-message-container');
+          startOtpTimer();
+        } else {
+          showMessage(result.message, 'error', 'otp-message-container');
+        }
+      } catch (error) {
+        showMessage('Gagal mengirim ulang OTP', 'error', 'otp-message-container');
+      }
+    });
 
     // Password toggle functionality
     document.addEventListener('click', function(e) {
@@ -703,6 +1190,36 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       }
     });
 
+    // Close modals when clicking outside
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('modal-overlay')) {
+        if (e.target.id === 'forgotPasswordModal') {
+          closeForgotPasswordModal();
+        } else if (e.target.id === 'otpModal') {
+          closeOtpModal();
+        } else if (e.target.id === 'resetPasswordModal') {
+          closeResetPasswordModal();
+        }
+      }
+    });
+
+    // OTP input formatting
+    document.getElementById('otp_code').addEventListener('input', function(e) {
+      this.value = this.value.replace(/\D/g, '');
+    });
+
+    // Password confirmation validation
+    document.getElementById('confirm_password').addEventListener('input', function(e) {
+      const newPassword = document.getElementById('new_password').value;
+      const confirmPassword = this.value;
+      
+      if (confirmPassword && newPassword !== confirmPassword) {
+        this.setCustomValidity('Password tidak cocok');
+      } else {
+        this.setCustomValidity('');
+      }
+    });
+
     // Initialize animations when page loads
     window.addEventListener('load', function() {
       setTimeout(() => {
@@ -714,6 +1231,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
       if (errorMessage) {
         setTimeout(() => {
           errorMessage.classList.add('show');
+        }, 500);
+      }
+
+      // Show success message if exists
+      const successMessage = document.querySelector('.message.success');
+      if (successMessage) {
+        setTimeout(() => {
+          successMessage.classList.add('show');
         }, 500);
       }
     });
@@ -728,6 +1253,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         this.parentElement.style.transform = 'scale(1)';
       });
     });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        if (document.getElementById('forgotPasswordModal').classList.contains('active')) {
+          closeForgotPasswordModal();
+        } else if (document.getElementById('otpModal').classList.contains('active')) {
+          closeOtpModal();
+        } else if (document.getElementById('resetPasswordModal').classList.contains('active')) {
+          closeResetPasswordModal();
+        } else if (document.getElementById('successModal').classList.contains('active')) {
+          closeSuccessModal();
+        }
+      }
+    });
   </script>
+  
 </body>
 </html>
